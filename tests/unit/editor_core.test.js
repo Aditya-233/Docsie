@@ -13,7 +13,7 @@ import {
   generateTableHTML,
   createLinkHTML,
   createImageHTML
-} from '../../src/core/editor.js';
+} from '../../src/core/editor.ts';
 
 describe('Editor Core - Typography & Whitelists', () => {
   test('font size whitelist contains standard typography scale', () => {

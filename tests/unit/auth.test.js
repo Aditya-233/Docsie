@@ -4,8 +4,8 @@
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { AuthManager } from '../../src/auth/authManager.js';
-import { ROLES } from '../../src/permissions/manager.js';
+import { AuthManager } from '../../src/auth/authManager.ts';
+import { ROLES } from '../../src/permissions/manager.ts';
 
 class MockStorage {
   constructor() {

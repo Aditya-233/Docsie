@@ -14,11 +14,11 @@ import {
   createDocSyncPacket,
   createCommentSyncPacket,
   CollaborationProtocol
-} from '../../src/collaboration/protocol.js';
+} from '../../src/collaboration/protocol.ts';
 
-import { PresenceTracker } from '../../src/collaboration/presence.js';
-import { CollaborationEngine, MockBroadcastChannel } from '../../src/collaboration/engine.js';
-import { ROLES } from '../../src/permissions/manager.js';
+import { PresenceTracker } from '../../src/collaboration/presence.ts';
+import { CollaborationEngine, MockBroadcastChannel } from '../../src/collaboration/engine.ts';
+import { ROLES } from '../../src/permissions/manager.ts';
 
 describe('Collaboration Protocol', () => {
   test('defines required message types', () => {

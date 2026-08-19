@@ -9,7 +9,7 @@ import {
   getRandomCollabColor,
   COLLAB_COLORS,
   DEFAULT_SIGNALING_SERVERS
-} from '../../src/collab/useYjsDoc.js';
+} from '../../src/collab/useYjsDoc.ts';
 
 describe('Yjs CRDT Collaboration - Room & Palette Utilities', () => {
   test('returns valid collaborator colors from Google Docs palette', () => {

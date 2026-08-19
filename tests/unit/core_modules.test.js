@@ -7,7 +7,7 @@ import {
   generateDocId,
   generateVersionId,
   createDefaultDocument
-} from '../../src/storage/documentStore.js';
+} from '../../src/storage/documentStore.ts';
 
 import {
   extractHeadings,
@@ -15,7 +15,7 @@ import {
   extractOutline,
   calculateStats,
   slugifyHeading
-} from '../../src/outline/outlineExtractor.js';
+} from '../../src/outline/outlineExtractor.ts';
 
 import {
   DocumentExporter,
@@ -23,7 +23,7 @@ import {
   generateStandaloneHTML,
   htmlToPlainText,
   generateWordHtml
-} from '../../src/export/exporter.js';
+} from '../../src/export/exporter.ts';
 
 import {
   FindReplaceEngine,
@@ -31,7 +31,7 @@ import {
   replaceInText,
   replaceAllInText,
   escapeRegex
-} from '../../src/tools/findReplace.js';
+} from '../../src/tools/findReplace.ts';
 
 import {
   RulerManager,
@@ -45,13 +45,13 @@ import {
   calculateDragConstraints,
   PAGE_PRESETS,
   MARGIN_PRESETS
-} from '../../src/tools/ruler.js';
+} from '../../src/tools/ruler.ts';
 
 import {
   ThemeManager,
   THEMES,
   PAGE_COLOR_PALETTE
-} from '../../src/ui/theme.js';
+} from '../../src/ui/theme.ts';
 
 describe('DocumentStore & Persistence', () => {
   test('creates, saves, retrieves, lists and deletes documents', () => {

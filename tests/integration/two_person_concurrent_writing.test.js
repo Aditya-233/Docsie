@@ -1,10 +1,10 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CollaborationEngine, MockBroadcastChannel } from '../../src/collaboration/engine.js';
-import { ROLES } from '../../src/permissions/manager.js';
-import { CommentManager } from '../../src/comments/commentManager.js';
-import { generateTableHTML } from '../../src/core/editor.js';
+import { CollaborationEngine, MockBroadcastChannel } from '../../src/collaboration/engine.ts';
+import { ROLES } from '../../src/permissions/manager.ts';
+import { CommentManager } from '../../src/comments/commentManager.ts';
+import { generateTableHTML } from '../../src/core/editor.ts';
 
 describe('Two-Person Concurrent Writing Integration Test Suite', () => {
   beforeEach(() => {

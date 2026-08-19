@@ -8,14 +8,14 @@ import {
   getRoleRank,
   AccessControl,
   PermissionManager
-} from '../../src/permissions/manager.js';
+} from '../../src/permissions/manager.ts';
 
 import {
   generateShareUrl,
   parseShareUrl,
   CollaboratorListManager,
   ShareManager
-} from '../../src/permissions/share.js';
+} from '../../src/permissions/share.ts';
 
 describe('Permissions & Access Control Matrix', () => {
   test('role hierarchy and normalization', () => {

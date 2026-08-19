@@ -1,0 +1,11 @@
+export { default as Header } from './Header.tsx';
+export { default as Toolbar } from './Toolbar.tsx';
+export { default as Ruler } from './Ruler.tsx';
+export { default as ShareModal } from './ShareModal.tsx';
+export { default as AccessRequestToast } from './AccessRequestToast.tsx';
+export { default as AuthModal } from './AuthModal.tsx';
+export { default as DocumentDashboard } from './DocumentDashboard.tsx';
+export { default as UserProfileMenu } from './UserProfileMenu.tsx';
+export { OutlineSidebar } from './OutlineSidebar.tsx';
+export { CommentsSidebar } from './CommentsSidebar.tsx';
+export { EditorCanvas } from './EditorCanvas.tsx';

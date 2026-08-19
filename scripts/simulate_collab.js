@@ -8,11 +8,11 @@
  *   npm run simulate:collab
  */
 
-import { CollaborationEngine, MockBroadcastChannel } from '../src/collaboration/engine.js';
-import { ROLES } from '../src/permissions/manager.js';
-import { CommentManager } from '../src/comments/commentManager.js';
-import { generateTableHTML } from '../src/core/editor.js';
-import { generateShareUrl } from '../src/permissions/share.js';
+import { CollaborationEngine, MockBroadcastChannel } from '../src/collaboration/engine.ts';
+import { ROLES } from '../src/permissions/manager.ts';
+import { CommentManager } from '../src/comments/commentManager.ts';
+import { generateTableHTML } from '../src/core/editor.ts';
+import { generateShareUrl } from '../src/permissions/share.ts';
 
 // ANSI color escape sequences
 const c = {

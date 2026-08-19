@@ -1,7 +1,7 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CommentManager } from '../../src/comments/commentManager.js';
+import { CommentManager } from '../../src/comments/commentManager.ts';
 
 describe('CommentManager', () => {
   let manager;
