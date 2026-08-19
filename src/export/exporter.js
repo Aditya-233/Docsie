@@ -44,7 +44,7 @@ export function convertTableToMarkdown(tableHtml) {
 
     while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
       let cellText = cellMatch[1]
-        .replace(/<br\s*[\/]?>/gi, ' ')
+        .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
         .replace(/\|/g, '\\|')
         .replace(/\n+/g, ' ')
@@ -91,13 +91,13 @@ export function htmlToMarkdown(html) {
 
   // 1. Preformatted code blocks <pre><code class="...">content</code></pre>
   md = md.replace(/<pre[^>]*><code(?:\s+class="(?:language-)?([a-z0-9_-]+)")?[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (match, lang, code) => {
-    const decoded = decodeHtmlEntities(code.replace(/<br\s*[\/]?>/gi, '\n').replace(/<[^>]+>/g, ''));
+    const decoded = decodeHtmlEntities(code.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ''));
     return `\n\`\`\`${lang || ''}\n${decoded}\n\`\`\`\n\n`;
   });
 
   // 2. Standalone <pre> tags
   md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, (match, code) => {
-    const decoded = decodeHtmlEntities(code.replace(/<br\s*[\/]?>/gi, '\n').replace(/<[^>]+>/g, ''));
+    const decoded = decodeHtmlEntities(code.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ''));
     return `\n\`\`\`\n${decoded}\n\`\`\`\n\n`;
   });
 
@@ -115,7 +115,7 @@ export function htmlToMarkdown(html) {
   md = md.replace(/<h6[^>]*>([\s\S]*?)<\/h6>/gi, '\n###### $1\n\n');
 
   // 5. Horizontal rules
-  md = md.replace(/<hr\s*[\/]?>/gi, '\n---\n\n');
+  md = md.replace(/<hr\s*\/?>/gi, '\n---\n\n');
 
   // 6. Blockquotes
   md = md.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (match, content) => {
@@ -151,7 +151,7 @@ export function htmlToMarkdown(html) {
 
   // 11. Paragraphs & Line Breaks
   md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
-  md = md.replace(/<br\s*[\/]?>/gi, '\n');
+  md = md.replace(/<br\s*\/?>/gi, '\n');
 
   // 12. Strip remaining HTML tags
   md = md.replace(/<[^>]+>/g, '');
@@ -353,7 +353,7 @@ export function htmlToPlainText(html) {
 
   // Replace block elements with newlines
   text = text.replace(/<\/(p|div|h[1-6]|blockquote|pre|tr)>/gi, '\n');
-  text = text.replace(/<br\s*[\/]?>/gi, '\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<li[^>]*>/gi, '  • ');
   text = text.replace(/<\/li>/gi, '\n');
   text = text.replace(/<(?:td|th)[^>]*>/gi, '\t');

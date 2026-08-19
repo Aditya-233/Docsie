@@ -6,7 +6,6 @@
 
 import {
   MESSAGE_TYPES,
-  CollaborationProtocol,
   validatePacket,
   createPacket,
   createDocDeltaPacket,

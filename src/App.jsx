@@ -603,6 +603,13 @@ export default function App() {
         addLog('AUTH', 'Signed out. Switched to guest session.');
     }, [currentRole, addLog]);
 
+    const handleCopyLogs = useCallback(() => {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            navigator.clipboard.writeText(logs.map(l => `[${l.timestamp}] [${l.category}] ${l.message}`).join('\n'));
+            addLog('LOGS', 'Copied diagnostic logs to clipboard');
+        }
+    }, [logs, addLog]);
+
     const handleOpenDocument = useCallback((selectedDocId) => {
         const currentUrl = new URL(window.location.href);
         currentUrl.hash = `#doc=${selectedDocId}&role=editor&user=${encodeURIComponent(currentUser.name)}`;

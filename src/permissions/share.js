@@ -2,7 +2,7 @@
  * Share URL generation, parsing, and granular collaborator list management.
  */
 
-import { ROLES, normalizeRole, isValidRole } from './manager.js';
+import { ROLES, normalizeRole } from './manager.js';
 
 /**
  * Generate a shareable URL containing docId, role, and optional user information.

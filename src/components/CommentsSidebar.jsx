@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Check, MessageSquare, Send } from 'lucide-react';
 
 export function CommentsSidebar({
@@ -7,7 +7,7 @@ export function CommentsSidebar({
   comments = [],
   onResolveComment,
   onAddReply,
-  currentUser = { name: 'Aditya Padhi', color: '#1a73e8' }
+  currentUser: _currentUser = { name: 'Aditya Padhi', color: '#1a73e8' }
 }) {
   const [replyInputs, setReplyInputs] = useState({});
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Lock,
   Globe,
@@ -6,12 +6,7 @@ import {
   Settings,
   Link,
   Check,
-  ChevronDown,
-  X,
-  User,
-  Users,
-  Copy,
-  UserPlus
+  ChevronDown
 } from 'lucide-react';
 
 /**

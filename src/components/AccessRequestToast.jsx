@@ -1,5 +1,4 @@
-import React from 'react';
-import { Check, X, ShieldAlert, User } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 /**
  * AccessRequestToast Component

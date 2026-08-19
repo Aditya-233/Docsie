@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Undo,
   Redo,
   Printer,
   PaintRoller,
-  CheckSquare,
   Bold,
   Italic,
   Underline,
   Strikethrough,
   Highlighter,
-  Palette,
   Link as LinkIcon,
   MessageSquare,
   Image as ImageIcon,
@@ -28,10 +26,9 @@ import {
   Minus,
   Plus,
   ChevronDown,
-  Check,
-  ZoomIn
+  Check
 } from 'lucide-react';
-import { FONT_FAMILIES_WHITELIST, FONT_SIZES_WHITELIST } from '../core/editor.js';
+import { FONT_FAMILIES_WHITELIST } from '../core/editor.js';
 
 // Standard Google Docs Color Palette
 const COLOR_PALETTE = [

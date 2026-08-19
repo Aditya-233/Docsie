@@ -78,11 +78,11 @@ export const AccessControl = Object.freeze({
     return norm === ROLES.OWNER;
   },
 
-  canExport(role) {
+  canExport(_role) {
     return true; // All roles with access can export
   },
 
-  canView(role) {
+  canView(_role) {
     return true; // All recognized roles can view
   },
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, ArrowLeft, FileText, Clock, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, Trash2, ArrowLeft, FileText, Clock } from 'lucide-react';
 import { authManager } from '../auth/authManager.js';
 
 export default function DocumentDashboard({ onOpenDocument, onNewDocument, onClose }) {

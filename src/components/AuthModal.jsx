@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, User, Mail, Lock, Sparkles, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import { authManager } from '../auth/authManager.js';
 

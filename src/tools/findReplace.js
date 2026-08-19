@@ -86,13 +86,7 @@ export function findMatches(text, query, options = {}) {
     isRegex = false
   } = options;
 
-  let patternStr = '';
-
-  if (isRegex) {
-    patternStr = query;
-  } else {
-    patternStr = escapeRegex(query);
-  }
+  let patternStr = isRegex ? query : escapeRegex(query);
 
   if (wholeWord) {
     patternStr = `\\b${patternStr}\\b`;

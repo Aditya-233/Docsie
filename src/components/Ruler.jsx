@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { calculateDragConstraints, DPI } from '../tools/ruler.js';
 
 /**
@@ -22,7 +22,6 @@ export default function Ruler({
   isReadOnly = false
 }) {
   const [activeDrag, setActiveDrag] = useState(null); // 'left' | 'firstLine' | 'right'
-  const [dragX, setDragX] = useState(null);
   const rulerRef = useRef(null);
 
   // Total inches based on width
@@ -33,7 +32,6 @@ export default function Ruler({
     e.preventDefault();
     e.stopPropagation();
     setActiveDrag(markerType);
-    setDragX(e.clientX);
   };
 
   const handleMouseMove = useCallback(
@@ -62,8 +60,6 @@ export default function Ruler({
           firstLineIndent: result.firstLineIndentOffset
         });
       }
-
-      setDragX(e.clientX);
     },
     [activeDrag, leftMargin, rightMargin, firstLineIndent, pageWidth, onMarginsChange]
   );
@@ -71,7 +67,6 @@ export default function Ruler({
   const handleMouseUp = useCallback(() => {
     if (activeDrag) {
       setActiveDrag(null);
-      setDragX(null);
     }
   }, [activeDrag]);
 

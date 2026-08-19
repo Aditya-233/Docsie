@@ -1,24 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Lock,
-  Globe,
   Star,
   Folder,
   CloudCheck,
   Video,
   MessageSquare,
-  Clock,
-  Printer,
-  FileText,
-  Copy,
-  Download,
   Share2,
-  Check,
-  ChevronDown,
-  Sparkles,
-  HelpCircle,
-  Eye,
-  Edit3
+  Check
 } from 'lucide-react';
 import UserProfileMenu from './UserProfileMenu.jsx';
 

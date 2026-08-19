@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 import '../collab/remoteCursors.css';
-import { Eye, ShieldAlert, Check } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 export function EditorCanvas({
   onQuillReady,

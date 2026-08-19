@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, FileText, Check, Palette, Shield, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { User, LogOut, FileText, Check, Palette, Shield } from 'lucide-react';
 
 const PALETTE = [
   '#ea4335', // Google Red (Alice)
