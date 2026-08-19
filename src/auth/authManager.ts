@@ -15,6 +15,17 @@ export interface StorageInterface {
   clear?(): void;
 }
 
+export interface AccountRecord {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  color: string;
+  avatar: string | null;
+  role: UserRole;
+  createdAt: number;
+}
+
 const STORAGE_KEYS = {
   CURRENT_USER: 'docsie_current_user',
   ACCOUNTS_DB: 'docsie_registered_accounts',
@@ -151,7 +162,9 @@ export class AuthManager {
 
     accounts[cleanEmail] = {
       ...user,
-      passwordHash: this._hashPassword(password)
+      role: ROLES.OWNER,
+      passwordHash: this._hashPassword(password),
+      createdAt: Date.now()
     };
 
     this._saveAccounts(accounts);
@@ -301,17 +314,15 @@ export class AuthManager {
     return docs;
   }
 
-  // ── Private Helpers ─────────────────────────────────────────────────────────
-
-  private _getAccounts(): Record<string, any> {
+  private _getAccounts(): Record<string, AccountRecord> {
     try {
       const raw = this.storage.getItem(STORAGE_KEYS.ACCOUNTS_DB);
-      if (raw) return JSON.parse(raw);
+      if (raw) return JSON.parse(raw) as Record<string, AccountRecord>;
     } catch (_e) {}
     return {};
   }
 
-  private _saveAccounts(accounts: Record<string, any>): void {
+  private _saveAccounts(accounts: Record<string, AccountRecord>): void {
     try {
       this.storage.setItem(STORAGE_KEYS.ACCOUNTS_DB, JSON.stringify(accounts));
     } catch (_e) {}

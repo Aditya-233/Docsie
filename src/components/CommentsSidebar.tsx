@@ -65,10 +65,12 @@ export function CommentsSidebar({
                     className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
                     style={{ backgroundColor: c.authorColor || '#1a73e8' }}
                   >
-                    {c.author ? c.author.charAt(0) : 'U'}
+                    {typeof c.author === 'object' && c.author?.name ? c.author.name.charAt(0) : (typeof c.author === 'string' && c.author ? c.author.charAt(0) : 'U')}
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">{c.author}</div>
+                    <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                      {typeof c.author === 'object' && c.author?.name ? c.author.name : String(c.author || 'Anonymous')}
+                    </div>
                     <div className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleTimeString()}</div>
                   </div>
                 </div>
@@ -88,7 +90,9 @@ export function CommentsSidebar({
                 <div className="space-y-1.5 pt-1 border-t border-gray-100 dark:border-gray-700/60">
                   {c.replies.map((r, i) => (
                     <div key={i} className="text-[11px] bg-gray-50 dark:bg-gray-800/60 p-2 rounded-md">
-                      <strong className="text-gray-900 dark:text-gray-200">{r.author}:</strong>{' '}
+                      <strong className="text-gray-900 dark:text-gray-200">
+                        {typeof r.author === 'object' && r.author?.name ? r.author.name : String(r.author || 'Anonymous')}:
+                      </strong>{' '}
                       <span className="text-gray-700 dark:text-gray-300">{r.text}</span>
                     </div>
                   ))}

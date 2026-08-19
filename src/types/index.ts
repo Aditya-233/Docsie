@@ -28,9 +28,16 @@ export interface DocumentMetadata {
   generalRole?: UserRole;
 }
 
+export interface CommentAuthor {
+  id?: string;
+  name: string;
+  color?: string;
+  avatar?: string | null;
+}
+
 export interface CommentReply {
   id: string;
-  author: any;
+  author: CommentAuthor | string;
   authorColor: string;
   text: string;
   createdAt: number;
@@ -38,22 +45,36 @@ export interface CommentReply {
 
 export interface DocumentComment {
   id: string;
-  author: any;
+  author: CommentAuthor | string;
   authorColor: string;
   text: string;
   range: { index: number; length: number };
   createdAt: number;
   resolved: boolean;
   replies: CommentReply[];
+  status?: 'open' | 'resolved';
+  anchorRange?: { index: number; length: number };
+  anchorText?: string;
 }
 
-export interface AccessRequest {
+export interface AccessRequestItem {
   id: string;
   userId: string;
-  user: UserProfile;
-  requestedRole: UserRole;
-  timestamp: number;
+  userName?: string;
+  userEmail?: string;
+  avatarColor?: string;
+  user?: UserProfile;
+  requestedRole?: UserRole;
+  timestamp: string | number;
   status: 'pending' | 'approved' | 'denied';
+}
+
+export interface CollaboratorPeer extends UserProfile {
+  isSelf?: boolean;
+  lastSeen?: number;
+  selection?: { index: number; length: number };
+  cursorRange?: { index: number; length: number };
+  cursorCoords?: { top: number; left: number; height: number };
 }
 
 export interface RulerMargins {

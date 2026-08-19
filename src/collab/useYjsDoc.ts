@@ -7,7 +7,8 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import { QuillBinding } from 'y-quill';
-import type { UserProfile, UserRole } from '../types/index.ts';
+import type Quill from 'quill';
+import type { UserProfile, UserRole, CollaboratorPeer, AccessRequestItem } from '../types/index.ts';
 
 export const COLLAB_COLORS: readonly string[] = [
   '#4285F4', // Google Blue
@@ -74,7 +75,7 @@ export interface UseYjsDocConfig {
   docId?: string;
   user?: Partial<UserProfile>;
   role?: UserRole;
-  quill?: any;
+  quill?: Quill | null;
   signaling?: string[] | readonly string[];
   password?: string | null;
   disablePersistence?: boolean;
@@ -114,16 +115,16 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     }
   }, [propUser, propRole]);
 
-  const [quillInstance, setQuillInstance] = useState<any>(propQuill);
+  const [quillInstance, setQuillInstance] = useState<Quill | null>(propQuill);
   useEffect(() => {
     if (propQuill) {
       setQuillInstance(propQuill);
     }
   }, [propQuill]);
 
-  const [collaborators, setCollaborators] = useState<any[]>([]);
-  const [permissions, setPermissions] = useState<Record<string, any>>({});
-  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [collaborators, setCollaborators] = useState<CollaboratorPeer[]>([]);
+  const [permissions, setPermissions] = useState<Record<string, UserRole>>({});
+  const [accessRequests, setAccessRequests] = useState<AccessRequestItem[]>([]);
   const [isSynced, setIsSynced] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [canUndo, setCanUndo] = useState<boolean>(false);
@@ -179,28 +180,29 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
 
     const handleAwarenessChange = () => {
       const states = awareness.getStates();
-      const peerList: any[] = [];
+      const peerList: CollaboratorPeer[] = [];
 
       states.forEach((state: any, clientId: number) => {
         if (state && state.user) {
           peerList.push({
-            clientId,
-            isLocal: clientId === ydoc.clientID,
             id: state.user.id || `peer_${clientId}`,
             name: state.user.name || `Collaborator ${clientId}`,
             color: state.user.color || '#4285F4',
             email: state.user.email || '',
             avatar: state.user.avatar || null,
             role: state.user.role || 'editor',
-            cursor: state.cursor || null,
-            lastActive: Date.now()
+            isSelf: clientId === ydoc.clientID,
+            lastSeen: Date.now(),
+            selection: state.selection,
+            cursorRange: state.cursorRange,
+            cursorCoords: state.cursorCoords
           });
         }
       });
 
       peerList.sort((a, b) => {
-        if (a.isLocal) return -1;
-        if (b.isLocal) return 1;
+        if (a.isSelf) return -1;
+        if (b.isSelf) return 1;
         return (a.name || '').localeCompare(b.name || '');
       });
 
@@ -245,7 +247,7 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     permissionsMap.observe(handlePermissionsChange);
     handlePermissionsChange();
 
-    const accessRequestsArray = ydoc.getArray('accessRequests');
+    const accessRequestsArray = ydoc.getArray<AccessRequestItem>('accessRequests');
     const handleAccessRequestsChange = () => {
       setAccessRequests(accessRequestsArray.toArray());
     };

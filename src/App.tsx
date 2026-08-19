@@ -22,7 +22,7 @@ import { authManager } from './auth/authManager.ts';
 import { WebrtcProvider } from 'y-webrtc';
 
 import { Eye, X } from 'lucide-react';
-import type { UserProfile, UserRole, RulerMargins } from './types/index.ts';
+import type { UserProfile, UserRole, RulerMargins, CollaboratorPeer, AccessRequestItem } from './types/index.ts';
 
 try {
   Quill.register('modules/cursors', QuillCursors, true);
@@ -46,7 +46,7 @@ function getCollaboratorColor(name: string, role?: string): string {
 }
 
 export default function App() {
-  const [docId, setDocId] = useState<string>('demo');
+  const [docId, setDocId] = useState<string>('project_2026_demo');
   const [title, setTitle] = useState<string>('Project Overview & Strategy 2026');
   const [isStarred, setIsStarred] = useState<boolean>(false);
   const [lastEditUser, setLastEditUser] = useState<string>('Alice');
@@ -61,10 +61,10 @@ export default function App() {
     role: ROLES.OWNER,
     isGuest: false
   });
-  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [collaborators, setCollaborators] = useState<CollaboratorPeer[]>([]);
   const [generalAccess, setGeneralAccess] = useState<'restricted' | 'anyone'>('restricted');
   const [generalRole, setGeneralRole] = useState<UserRole>('viewer');
-  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [accessRequests, setAccessRequests] = useState<AccessRequestItem[]>([]);
   const [hasRequestedAccess, setHasRequestedAccess] = useState<boolean>(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<string>('light');
@@ -80,11 +80,11 @@ export default function App() {
   const [isDashboardOpen, setIsDashboardOpen] = useState<boolean>(false);
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const quillRef = useRef<any>(null);
+  const quillRef = useRef<Quill | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
   const ytextRef = useRef<Y.Text | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
-  const knownPeersRef = useRef<Map<string, any>>(new Map());
+  const knownPeersRef = useRef<Map<string, CollaboratorPeer>>(new Map());
   const userProfileRef = useRef<UserProfile | null>(null);
   const formatPainterRef = useRef<FormatPainter>(new FormatPainter());
 
@@ -202,9 +202,9 @@ export default function App() {
 
     const updateRoster = () => {
       const now = Date.now();
-      const active: any[] = [];
+      const active: CollaboratorPeer[] = [];
       knownPeersRef.current.forEach((peer, id) => {
-        if (peer.isSelf || now - peer.lastSeen < 12000) {
+        if (peer.isSelf || now - (peer.lastSeen || 0) < 12000) {
           active.push(peer);
         } else {
           knownPeersRef.current.delete(id);
@@ -294,20 +294,20 @@ export default function App() {
 
         case 'REMOTE_CURSOR': {
           if (!quillRef.current) break;
-          const cursors = quillRef.current.getModule('cursors');
+          const cursors = quillRef.current.getModule('cursors') as { createCursor?: Function; moveCursor?: Function; update?: Function; removeCursor?: Function } | null;
           if (!cursors) break;
           try {
             if (msg.range) {
-              cursors.createCursor(msg.clientId, msg.user?.name, msg.user?.color);
-              cursors.moveCursor(msg.clientId, msg.range);
-              cursors.update();
+              cursors.createCursor?.(msg.clientId, msg.user?.name, msg.user?.color);
+              cursors.moveCursor?.(msg.clientId, msg.range);
+              cursors.update?.();
               addLog('CURSOR_RECV', `${msg.user?.name} at [${msg.range.index}, len:${msg.range.length}]`);
             } else {
-              cursors.removeCursor(msg.clientId);
-              cursors.update();
+              cursors.removeCursor?.(msg.clientId);
+              cursors.update?.();
             }
-          } catch (e: any) {
-            addLog('CURSOR_ERR', `Cursor render failed: ${e.message}`);
+          } catch (e: unknown) {
+            addLog('CURSOR_ERR', `Cursor render failed: ${e instanceof Error ? e.message : String(e)}`);
           }
           break;
         }
@@ -338,8 +338,8 @@ export default function App() {
             const safeIndex = Math.min(savedRange.index, quill.getLength() - 1);
             quill.setSelection(safeIndex, savedRange.length, 'api');
           }
-          const cursors = quill.getModule('cursors');
-          if (cursors) cursors.update();
+          const cursors = quill.getModule('cursors') as { update?: Function } | null;
+          if (cursors?.update) cursors.update();
         }
       }
     });
@@ -430,7 +430,7 @@ export default function App() {
 
     // ── 13. Access requests observer ──────────────────────────────────────
     accessRequestsArray.observe(() => {
-      const reqs = accessRequestsArray.toArray() as any[];
+      const reqs = accessRequestsArray.toArray() as AccessRequestItem[];
       setAccessRequests(reqs.filter(r => r.status === 'pending'));
       const approved = reqs.find(r => r.userId === (userProfileRef.current?.id || effectiveUser.id) && r.status === 'approved');
       if (approved) {
@@ -498,8 +498,8 @@ export default function App() {
 
   const handleApproveAccessRequest = useCallback((reqId: string) => {
     if (!ydocRef.current) return;
-    const arr = ydocRef.current.getArray('accessRequests');
-    const list = arr.toArray() as any[];
+    const arr = ydocRef.current.getArray<AccessRequestItem>('accessRequests');
+    const list = arr.toArray();
     const req = list.find(r => r.id === reqId);
     if (req) {
       ydocRef.current.getMap('permissions').set(req.userId, ROLES.EDITOR);
@@ -511,8 +511,8 @@ export default function App() {
 
   const handleDenyAccessRequest = useCallback((reqId: string) => {
     if (!ydocRef.current) return;
-    const arr = ydocRef.current.getArray('accessRequests');
-    const list = (arr.toArray() as any[]).filter(r => r.id !== reqId);
+    const arr = ydocRef.current.getArray<AccessRequestItem>('accessRequests');
+    const list = arr.toArray().filter(r => r.id !== reqId);
     arr.delete(0, arr.length);
     arr.push(list);
   }, []);
@@ -527,7 +527,7 @@ export default function App() {
   const handleReplaceCurrent = useCallback(() => {
     if (!quillRef.current || !findQuery) return;
     const range = quillRef.current.getSelection();
-    if (range?.length > 0) {
+    if (range && range.length > 0) {
       quillRef.current.deleteText(range.index, range.length);
       quillRef.current.insertText(range.index, replaceQuery);
       handleFindNext();

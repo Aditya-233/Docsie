@@ -186,22 +186,26 @@ export class CollaborationEngine {
   }
 
   on(event: string, callback: Function): () => void {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, new Set());
+    let set = this.eventListeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.eventListeners.set(event, set);
     }
-    this.eventListeners.get(event)!.add(callback);
+    set.add(callback);
     return () => this.off(event, callback);
   }
 
   off(event: string, callback: Function): void {
-    if (this.eventListeners.has(event)) {
-      this.eventListeners.get(event)!.delete(callback);
+    const set = this.eventListeners.get(event);
+    if (set) {
+      set.delete(callback);
     }
   }
 
-  emit(event: string, ...args: any[]): void {
-    if (this.eventListeners.has(event)) {
-      for (const cb of this.eventListeners.get(event)!) {
+  emit(event: string, ...args: unknown[]): void {
+    const set = this.eventListeners.get(event);
+    if (set) {
+      for (const cb of set) {
         try {
           cb(...args);
         } catch (err) {
