@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import Quill from 'quill';
 import QuillCursors from 'quill-cursors';
@@ -22,7 +22,7 @@ import { DocumentExporter } from './export/exporter.js';
 import { authManager } from './auth/authManager.js';
 import { WebrtcProvider } from 'y-webrtc';
 
-import { Eye, Wifi, Copy, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 
 // Register QuillCursors once at module level (safe from StrictMode re-runs)
 try {
@@ -68,11 +68,6 @@ export default function App() {
     const [zoom, setZoom] = useState(100);
     const [margins, setMargins] = useState({ left: 72, right: 72, firstLineIndent: 0 });
     const [formatPainterActive, setFormatPainterActive] = useState(false);
-    const [showDebugHUD, setShowDebugHUD] = useState(true);
-    const [logs, setLogs] = useState([]);
-    const [crdtTextPreview, setCrdtTextPreview] = useState('');
-    const [quillTextPreview, setQuillTextPreview] = useState('');
-    const [syncStats, setSyncStats] = useState({ peersCount: 1, updatesSent: 0, updatesReceived: 0 });
     const [showFindReplace, setShowFindReplace] = useState(false);
     const [findQuery, setFindQuery] = useState('');
     const [replaceQuery, setReplaceQuery] = useState('');
@@ -91,22 +86,8 @@ export default function App() {
     const engineAliveRef = useRef(false);
 
     const addLog = useCallback((category, message) => {
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[${category}] ${timestamp} — ${message}`);
-        setLogs(prev => [{ timestamp, category, message }, ...prev.slice(0, 99)]);
+        console.log(`[${category}] ${new Date().toLocaleTimeString()} — ${message}`);
     }, []);
-
-    const triggerSyncHandshake = useCallback(() => {
-        if (!channelRef.current || !ydocRef.current || !userProfileRef.current) return;
-        const sv = Y.encodeStateVector(ydocRef.current);
-        channelRef.current.postMessage({
-            type: 'SYNC_STEP_1',
-            clientId: userProfileRef.current.id,
-            user: userProfileRef.current,
-            stateVector: Array.from(sv)
-        });
-        addLog('HANDSHAKE_OUT', 'Manually triggered SYNC_STEP_1');
-    }, [addLog]);
 
     useEffect(() => {
         // ── STRICT MODE GUARD ──────────────────────────────────────────────────
@@ -172,7 +153,6 @@ export default function App() {
                 Y.applyUpdate(ydoc, bytes, 'storage_restore');
                 const restoredText = ytext.toString();
                 addLog('STORAGE_RESTORE', `Restored ${ytext.length} chars: "${restoredText.slice(0, 40)}"`);
-                setCrdtTextPreview(restoredText);
             }
         } catch (e) {
             addLog('ERROR', `Storage restore failed: ${e.message}`);
@@ -228,7 +208,6 @@ export default function App() {
                 }
             });
             setCollaborators(active);
-            setSyncStats(prev => ({ ...prev, peersCount: active.length }));
         };
 
         // ── 6. PIPELINE A: Y.Doc update → Save to localStorage + Broadcast ────
@@ -254,7 +233,6 @@ export default function App() {
                     user: userProfile,
                     update: Array.from(update)
                 });
-                setSyncStats(prev => ({ ...prev, updatesSent: prev.updatesSent + 1 }));
                 addLog('DELTA_SEND', `Sent ${update.length}B. YText="${ytext.toString().slice(0, 40)}"`);
             }
         });
@@ -293,7 +271,6 @@ export default function App() {
                     if (msg.targetId !== userProfile.id || !msg.update) break;
                     try {
                         Y.applyUpdate(ydoc, new Uint8Array(msg.update), 'remote_handshake');
-                        setSyncStats(prev => ({ ...prev, updatesReceived: prev.updatesReceived + 1 }));
                         addLog('HANDSHAKE_APPLY', `Got SYNC_STEP_2 (${msg.update.length}B) from ${msg.user?.name}. YText="${ytext.toString().slice(0, 40)}"`);
                     } catch (e) {
                         addLog('ERROR', `SYNC_STEP_2 apply failed: ${e.message}`);
@@ -305,7 +282,6 @@ export default function App() {
                     if (!msg.update) break;
                     try {
                         Y.applyUpdate(ydoc, new Uint8Array(msg.update), 'remote_delta');
-                        setSyncStats(prev => ({ ...prev, updatesReceived: prev.updatesReceived + 1 }));
                         addLog('DELTA_RECV', `From ${msg.user?.name}: "${ytext.toString().slice(0, 40)}"`);
                     } catch (e) {
                         addLog('ERROR', `CRDT_DELTA apply failed: ${e.message}`);
@@ -346,7 +322,6 @@ export default function App() {
         // a feedback loop: type → Y.Text → observe → setText → text-change(api)
         ytext.observe(event => {
             const currentStr = ytext.toString();
-            setCrdtTextPreview(currentStr);
 
             if (
                 event.transaction.origin === 'remote_delta' ||
@@ -370,7 +345,6 @@ export default function App() {
                     const cursors = quill.getModule('cursors');
                     if (cursors) cursors.update();
                 }
-                setQuillTextPreview(currentStr);
             }
         });
 
@@ -396,7 +370,6 @@ export default function App() {
             const restoredText = ytext.toString();
             if (restoredText.length > 0) {
                 quill.setText(restoredText, 'api');
-                setQuillTextPreview(restoredText);
                 addLog('QUILL_PREPOPULATE', `Pre-filled Quill with ${restoredText.length} restored chars`);
             }
 
@@ -406,8 +379,6 @@ export default function App() {
             //   a) Y.Doc updates → ydoc.on('update') fires → CRDT_DELTA broadcast
             //   b) ytext.observe sees origin='user_input' → does NOT call setText (no loop)
             quill.on('text-change', (delta, _oldDelta, source) => {
-                const currentTxt = quill.getText().replace(/\n$/, '');
-                setQuillTextPreview(currentTxt);
 
                 if (source === 'user') {
                     // Transact with 'user_input' origin so observe can distinguish it
@@ -415,6 +386,7 @@ export default function App() {
                         ytext.applyDelta(delta.ops);
                     }, 'user_input');
 
+                    const currentTxt = quill.getText().replace(/\n$/, '');
                     metaMap.set('lastEditUser', userProfile.name);
                     metaMap.set('lastEditTime', 'seconds ago');
                     setLastEditUser(userProfile.name);
@@ -603,13 +575,6 @@ export default function App() {
         addLog('AUTH', 'Signed out. Switched to guest session.');
     }, [currentRole, addLog]);
 
-    const handleCopyLogs = useCallback(() => {
-        if (typeof navigator !== 'undefined' && navigator.clipboard) {
-            navigator.clipboard.writeText(logs.map(l => `[${l.timestamp}] [${l.category}] ${l.message}`).join('\n'));
-            addLog('LOGS', 'Copied diagnostic logs to clipboard');
-        }
-    }, [logs, addLog]);
-
     const handleOpenDocument = useCallback((selectedDocId) => {
         const currentUrl = new URL(window.location.href);
         currentUrl.hash = `#doc=${selectedDocId}&role=editor&user=${encodeURIComponent(currentUser.name)}`;
@@ -719,79 +684,6 @@ export default function App() {
                     <div ref={editorContainerRef} className="min-h-[900px] text-[15px] outline-none text-[#202124]" />
                 </div>
             </main>
-
-            {/* ── Real-Time Diagnostic & Telemetry HUD ────────────────────────── */}
-            <div className="fixed bottom-3 left-4 z-50 bg-[#161718]/95 text-white backdrop-blur-md rounded-2xl shadow-2xl border border-gray-700/80 p-3 max-w-xl w-full text-xs font-sans">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-700/60">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
-                        <span className="font-semibold text-gray-200 text-sm">Real-Time Diagnostic Console</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                        <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <Wifi className="w-3 h-3" /> {syncStats.peersCount} Peer(s)
-                        </span>
-                        <button onClick={triggerSyncHandshake} className="bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded flex items-center gap-1 font-medium transition cursor-pointer">
-                            <RefreshCw className="w-3 h-3" /> Sync Now
-                        </button>
-                        <button onClick={handleCopyLogs} className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded flex items-center gap-1 transition cursor-pointer">
-                            <Copy className="w-3 h-3" /> Copy
-                        </button>
-                        <button onClick={() => setShowDebugHUD(v => !v)} className="text-gray-400 hover:text-white p-1">
-                            {showDebugHUD ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                        </button>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 py-2 text-[10px] text-gray-300">
-                    <div className="bg-gray-800/70 p-1.5 rounded border border-gray-700/50">
-                        <div className="text-gray-400">User</div>
-                        <div className="font-semibold text-white flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentUser.color }} />
-                            {currentUser.name} ({currentRole})
-                        </div>
-                    </div>
-                    <div className="bg-gray-800/70 p-1.5 rounded border border-gray-700/50">
-                        <div className="text-gray-400">CRDT Text</div>
-                        <div className="font-semibold text-emerald-400 truncate" title={crdtTextPreview || '(empty)'}>
-                            {crdtTextPreview ? `"${crdtTextPreview.slice(0, 20)}"` : '(empty)'}
-                        </div>
-                    </div>
-                    <div className="bg-gray-800/70 p-1.5 rounded border border-gray-700/50">
-                        <div className="text-gray-400">Quill View</div>
-                        <div className="font-semibold text-blue-400 truncate" title={quillTextPreview || '(empty)'}>
-                            {quillTextPreview ? `"${quillTextPreview.slice(0, 20)}"` : '(empty)'}
-                        </div>
-                    </div>
-                    <div className="bg-gray-800/70 p-1.5 rounded border border-gray-700/50">
-                        <div className="text-gray-400">Sent / Recv</div>
-                        <div className="font-semibold text-purple-400">
-                            {syncStats.updatesSent} / {syncStats.updatesReceived}
-                        </div>
-                    </div>
-                </div>
-
-                {showDebugHUD && (
-                    <div className="mt-1 bg-black/90 rounded-lg p-2 max-h-40 overflow-y-auto font-mono text-[10px] space-y-1 border border-gray-800">
-                        {logs.length === 0
-                            ? <div className="text-gray-500 italic">Listening…</div>
-                            : logs.map((log, i) => (
-                                <div key={i} className="flex items-start gap-2 leading-tight">
-                                    <span className="text-gray-500 shrink-0">{log.timestamp}</span>
-                                    <span className={`shrink-0 font-semibold px-1 rounded text-[9px] ${
-                                        log.category.includes('RECV') || log.category.includes('APPLY') ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                                        log.category.includes('SEND') || log.category.includes('INPUT') ? 'bg-blue-950 text-blue-400 border border-blue-800' :
-                                        log.category.includes('HANDSHAKE') ? 'bg-cyan-950 text-cyan-300 border border-cyan-800' :
-                                        log.category.includes('RESTORE') || log.category.includes('PREPOP') ? 'bg-amber-950 text-amber-300 border border-amber-800' :
-                                        log.category.includes('ERROR') ? 'bg-red-950 text-red-400 border border-red-800' :
-                                        'bg-gray-800 text-gray-300'
-                                    }`}>[{log.category}]</span>
-                                    <span className="text-gray-200 break-all">{log.message}</span>
-                                </div>
-                            ))}
-                    </div>
-                )}
-            </div>
 
             <ShareModal
                 isOpen={isShareModalOpen}
