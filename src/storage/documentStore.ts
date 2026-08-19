@@ -3,7 +3,7 @@
  * for Google Docs Clone.
  */
 
-import type { UserProfile } from '../types/index.ts';
+import type { UserProfile, QuillDelta } from '../types/index.ts';
 
 export const STORAGE_KEYS = Object.freeze({
   DOCS_INDEX: 'gdocs_index',
@@ -44,7 +44,57 @@ export const ANONYMOUS_ANIMALS: readonly string[] = Object.freeze([
   'Turtle', 'Walrus', 'Wolf', 'Wolverine', 'Wombat'
 ]);
 
-export class MemoryStorage {
+export interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+  clear?(): void;
+}
+
+export interface DocumentSummary {
+  id: string;
+  title: string;
+  updatedAt: number;
+  createdAt: number;
+  starred?: boolean;
+}
+
+export interface StoredDocumentVersion {
+  id: string;
+  timestamp: number;
+  label?: string;
+  author?: UserProfile | { name: string; color: string } | string;
+  isAutoSave?: boolean;
+  content?: string;
+  delta?: QuillDelta | null;
+  title?: string;
+}
+
+export interface StoredDocument {
+  id: string;
+  title: string;
+  content: string;
+  delta: QuillDelta | null;
+  createdAt: number;
+  updatedAt: number;
+  starred: boolean;
+  owner: UserProfile | { id: string; name: string; role: string };
+  sharing: {
+    accessLevel: string;
+    linkRole: string;
+    collaborators: unknown[];
+  };
+  comments: unknown[];
+  pageSetup: {
+    margins: { top: number; right: number; bottom: number; left: number };
+    orientation: string;
+    paperSize: string;
+    pageColor: string;
+  };
+  versions: StoredDocumentVersion[];
+}
+
+export class MemoryStorage implements StorageLike {
   private store: Map<string, string>;
 
   constructor() {
@@ -52,7 +102,8 @@ export class MemoryStorage {
   }
 
   getItem(key: string): string | null {
-    return this.store.has(String(key)) ? this.store.get(String(key))! : null;
+    const val = this.store.get(String(key));
+    return val !== undefined ? val : null;
   }
 
   setItem(key: string, value: string): void {
@@ -79,7 +130,7 @@ export class MemoryStorage {
 
 const globalMemoryStore = new MemoryStorage();
 
-export function getStorage(customStorage: any = null): any {
+export function getStorage(customStorage: StorageLike | null = null): StorageLike {
   if (customStorage) return customStorage;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -106,7 +157,7 @@ export function generateVersionId(): string {
   return `ver_${ts}_${rand}`;
 }
 
-export function createDefaultDocument(options: any = {}) {
+export function createDefaultDocument(options: Partial<StoredDocument> = {}): StoredDocument {
   const now = Date.now();
   const id = options.id || generateDocId();
   return {
@@ -135,13 +186,13 @@ export function createDefaultDocument(options: any = {}) {
 }
 
 export class DocumentStore {
-  public storage: any;
+  public storage: StorageLike;
 
-  constructor(storage: any = null) {
+  constructor(storage: StorageLike | null = null) {
     this.storage = getStorage(storage);
   }
 
-  getDocsIndex(): any[] {
+  getDocsIndex(): DocumentSummary[] {
     try {
       const raw = this.storage.getItem(STORAGE_KEYS.DOCS_INDEX);
       if (!raw) return [];
@@ -153,7 +204,7 @@ export class DocumentStore {
     }
   }
 
-  saveDocsIndex(index: any[]): void {
+  saveDocsIndex(index: DocumentSummary[]): void {
     try {
       this.storage.setItem(STORAGE_KEYS.DOCS_INDEX, JSON.stringify(index || []));
     } catch (err) {
@@ -161,38 +212,38 @@ export class DocumentStore {
     }
   }
 
-  listDocuments(): any[] {
+  listDocuments(): DocumentSummary[] {
     const index = this.getDocsIndex();
     return index.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
-  createDocument(options: any = {}): any {
+  createDocument(options: Partial<StoredDocument> = {}): StoredDocument {
     const doc = createDefaultDocument(options);
     this.saveDocument(doc);
     return doc;
   }
 
-  createDoc(options: any = {}): any {
+  createDoc(options: Partial<StoredDocument> = {}): StoredDocument {
     return this.createDocument(options);
   }
 
-  getDocument(id: string): any | null {
+  getDocument(id: string): StoredDocument | null {
     if (!id) return null;
     try {
       const raw = this.storage.getItem(STORAGE_KEYS.DOC_PREFIX + id);
       if (!raw) return null;
-      return JSON.parse(raw);
+      return JSON.parse(raw) as StoredDocument;
     } catch (err) {
       console.warn(`Error reading document "${id}":`, err);
       return null;
     }
   }
 
-  getDoc(id: string): any | null {
+  getDoc(id: string): StoredDocument | null {
     return this.getDocument(id);
   }
 
-  saveDocument(doc: any): any {
+  saveDocument(doc: StoredDocument): StoredDocument {
     if (!doc || !doc.id) {
       throw new Error('Cannot save invalid document without an ID');
     }
@@ -205,7 +256,7 @@ export class DocumentStore {
 
       const index = this.getDocsIndex();
       const existingIdx = index.findIndex(item => item.id === doc.id);
-      const summary = {
+      const summary: DocumentSummary = {
         id: doc.id,
         title: doc.title || 'Untitled document',
         updatedAt: doc.updatedAt,
@@ -227,7 +278,7 @@ export class DocumentStore {
     return doc;
   }
 
-  saveDoc(doc: any): any {
+  saveDoc(doc: StoredDocument): StoredDocument {
     return this.saveDocument(doc);
   }
 
@@ -280,7 +331,7 @@ export class DocumentStore {
     }
   }
 
-  listSnapshots(docId: string): any[] {
+  listSnapshots(docId: string): StoredDocumentVersion[] {
     if (!docId) return [];
     try {
       const raw = this.storage.getItem(STORAGE_KEYS.VERSIONS_PREFIX + docId);
@@ -296,26 +347,24 @@ export class DocumentStore {
     }
   }
 
-  getVersionHistory(docId: string): any[] {
+  getVersionHistory(docId: string): StoredDocumentVersion[] {
     return this.listSnapshots(docId);
   }
 
-  createSnapshot(docId: string, options: any = {}): any | null {
+  createSnapshot(docId: string, options: Partial<StoredDocumentVersion> & { isAutoSave?: boolean; name?: string; stats?: unknown } = {}): StoredDocumentVersion | null {
     if (!docId) return null;
     const doc = this.getDocument(docId);
     if (!doc) return null;
 
     const now = Date.now();
-    const snapshot = {
+    const snapshot: StoredDocumentVersion = {
       id: options.id || generateVersionId(),
-      docId: docId,
       timestamp: now,
       label: options.label || options.name || `Version ${new Date(now).toLocaleTimeString()}`,
       author: options.author || { name: 'Current User', color: '#4285f4' },
       content: options.content !== undefined ? options.content : doc.content,
       delta: options.delta !== undefined ? options.delta : doc.delta,
       title: options.title || doc.title,
-      stats: options.stats || null,
       isAutoSave: !!options.isAutoSave
     };
 
@@ -325,7 +374,7 @@ export class DocumentStore {
     try {
       this.storage.setItem(STORAGE_KEYS.VERSIONS_PREFIX + docId, JSON.stringify(versions));
 
-      doc.versions = versions.slice(0, 20).map((v: any) => ({
+      doc.versions = versions.slice(0, 20).map((v) => ({
         id: v.id,
         timestamp: v.timestamp,
         label: v.label,
@@ -340,12 +389,12 @@ export class DocumentStore {
     return snapshot;
   }
 
-  getSnapshot(docId: string, versionId: string): any | null {
+  getSnapshot(docId: string, versionId: string): StoredDocumentVersion | null {
     const versions = this.listSnapshots(docId);
     return versions.find(v => v.id === versionId) || null;
   }
 
-  restoreSnapshot(docId: string, versionId: string, restoringUser: any = null): any | null {
+  restoreSnapshot(docId: string, versionId: string, restoringUser: UserProfile | { name: string; color: string } | null = null): StoredDocument | null {
     const doc = this.getDocument(docId);
     if (!doc) return null;
 
@@ -358,8 +407,8 @@ export class DocumentStore {
       isAutoSave: true
     });
 
-    doc.content = snapshot.content;
-    doc.delta = snapshot.delta;
+    if (snapshot.content !== undefined) doc.content = snapshot.content;
+    if (snapshot.delta !== undefined) doc.delta = snapshot.delta;
     if (snapshot.title) doc.title = snapshot.title;
     doc.updatedAt = Date.now();
 
@@ -390,7 +439,7 @@ export class DocumentStore {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.id && parsed.name) {
-          return parsed;
+          return parsed as UserProfile;
         }
       }
     } catch (err) {
@@ -399,10 +448,10 @@ export class DocumentStore {
 
     const defaultProfile = this.randomizeUserProfile(false);
     this.saveUserProfile(defaultProfile);
-    return defaultProfile as any;
+    return defaultProfile;
   }
 
-  saveUserProfile(profile: any): void {
+  saveUserProfile(profile: UserProfile): void {
     if (!profile) return;
     try {
       this.storage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
@@ -411,17 +460,17 @@ export class DocumentStore {
     }
   }
 
-  randomizeUserProfile(persist: boolean = true): any {
+  randomizeUserProfile(persist: boolean = true): UserProfile {
     const randomAnimal = ANONYMOUS_ANIMALS[Math.floor(Math.random() * ANONYMOUS_ANIMALS.length)];
     const randomColor = COLLAB_COLORS[Math.floor(Math.random() * COLLAB_COLORS.length)];
     const randId = Math.random().toString(36).substring(2, 9);
 
-    const profile = {
+    const profile: UserProfile = {
       id: `user_${randId}`,
       name: `Anonymous ${randomAnimal}`,
       color: randomColor,
       avatar: null,
-      email: null
+      email: ''
     };
 
     if (persist) {
@@ -450,11 +499,11 @@ export const documentStore = new DocumentStore();
 
 export const DocumentStorage = {
   getDocsIndex: () => documentStore.getDocsIndex(),
-  saveDocsIndex: (idx: any[]) => documentStore.saveDocsIndex(idx),
+  saveDocsIndex: (idx: DocumentSummary[]) => documentStore.saveDocsIndex(idx),
   getDoc: (id: string) => documentStore.getDocument(id),
-  saveDoc: (doc: any) => documentStore.saveDocument(doc),
+  saveDoc: (doc: StoredDocument) => documentStore.saveDocument(doc),
   deleteDoc: (id: string) => documentStore.deleteDocument(id),
   getUserProfile: () => documentStore.getUserProfile(),
-  saveUserProfile: (p: any) => documentStore.saveUserProfile(p),
+  saveUserProfile: (p: UserProfile) => documentStore.saveUserProfile(p),
   randomizeUserProfile: () => documentStore.randomizeUserProfile()
 };

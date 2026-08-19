@@ -5,6 +5,8 @@
  * and Microsoft Word (.docx) formats with headless / Node.js test support.
  */
 
+import type { StoredDocument } from '../storage/documentStore.ts';
+
 export function decodeHtmlEntities(text: string): string {
   if (!text) return '';
   return text
@@ -24,13 +26,13 @@ export function convertTableToMarkdown(tableHtml: string): string {
 
   const rows: string[][] = [];
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch;
+  let rowMatch: RegExpExecArray | null;
 
   while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
     const rowContent = rowMatch[1];
     const cells: string[] = [];
     const cellRegex = /<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
-    let cellMatch;
+    let cellMatch: RegExpExecArray | null;
 
     while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
       const cellText = cellMatch[1]
@@ -134,7 +136,20 @@ export function htmlToMarkdown(html: string): string {
   return md.trim();
 }
 
-export function generateStandaloneHTML(title: string = 'Untitled document', bodyHtml: string = '', options: any = {}): string {
+export interface HtmlExportOptions {
+  pageColor?: string;
+  margins?: { top: number; right: number; bottom: number; left: number };
+  customCss?: string;
+  lang?: string;
+  title?: string;
+  content?: string;
+}
+
+export function generateStandaloneHTML(
+  title: string = 'Untitled document',
+  bodyHtml: string = '',
+  options: HtmlExportOptions = {}
+): string {
   const pageColor = options.pageColor || '#ffffff';
   const margins = options.margins || { top: 72, right: 72, bottom: 72, left: 72 };
   const customCss = options.customCss || '';
@@ -323,7 +338,11 @@ export function htmlToPlainText(html: string): string {
   return text.trim();
 }
 
-export function generateWordHtml(title: string = 'Document', bodyHtml: string = '', options: any = {}): string {
+export function generateWordHtml(
+  title: string = 'Document',
+  bodyHtml: string = '',
+  options: { margins?: { top: number; right: number; bottom: number; left: number } } = {}
+): string {
   const margins = options.margins || { top: 72, right: 72, bottom: 72, left: 72 };
 
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -393,13 +412,13 @@ export function downloadFile(content: string | Blob, filename: string, mimeType:
 }
 
 export class DocumentExporter {
-  public doc: any;
+  public doc: Partial<StoredDocument>;
 
-  constructor(doc: any = {}) {
+  constructor(doc: Partial<StoredDocument> = {}) {
     this.doc = doc;
   }
 
-  setDocument(doc: any): void {
+  setDocument(doc: Partial<StoredDocument>): void {
     this.doc = doc;
   }
 
@@ -408,7 +427,7 @@ export class DocumentExporter {
     return htmlToMarkdown(html);
   }
 
-  toHTML(options: any = {}): string {
+  toHTML(options: HtmlExportOptions = {}): string {
     const title = options.title || this.doc?.title || 'Untitled document';
     const html = options.content !== undefined ? options.content : (this.doc?.content || '');
     const pageColor = options.pageColor || this.doc?.pageSetup?.pageColor || '#ffffff';
@@ -421,17 +440,20 @@ export class DocumentExporter {
     return htmlToPlainText(html);
   }
 
-  toDOCX(options: any = {}): string | Blob {
+  toDOCX(options: HtmlExportOptions = {}): string | Blob {
     const title = options.title || this.doc?.title || 'Untitled document';
     const html = options.content !== undefined ? options.content : (this.doc?.content || '');
     const margins = options.margins || this.doc?.pageSetup?.margins;
     const wordHtml = generateWordHtml(title, html, { margins, ...options });
 
-    if (typeof window !== 'undefined' && (window as any).htmlDocx && typeof (window as any).htmlDocx.asBlob === 'function') {
-      try {
-        return (window as any).htmlDocx.asBlob(wordHtml);
-      } catch (e) {
-        console.warn('htmlDocx conversion fallback:', e);
+    if (typeof window !== 'undefined' && 'htmlDocx' in window) {
+      const htmlDocx = (window as unknown as { htmlDocx: { asBlob: (content: string) => Blob } }).htmlDocx;
+      if (htmlDocx && typeof htmlDocx.asBlob === 'function') {
+        try {
+          return htmlDocx.asBlob(wordHtml);
+        } catch (e) {
+          console.warn('htmlDocx conversion fallback:', e);
+        }
       }
     }
 
@@ -442,7 +464,7 @@ export class DocumentExporter {
     return wordHtml;
   }
 
-  download(format: string = 'md', customFilename: string | null = null) {
+  download(format: string = 'md', customFilename: string | null = null): Blob | null {
     const title = this.doc?.title || 'document';
     const cleanTitle = title.replace(/[^\w\s-]/g, '').trim() || 'document';
     const ext = format.toLowerCase();

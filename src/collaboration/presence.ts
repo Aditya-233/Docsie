@@ -3,13 +3,29 @@
  * cursor coordinates, selections, and stale peer eviction.
  */
 
+import type { UserProfile, UserRole } from '../types/index.ts';
+
+export interface CursorCoordinates {
+  top: number;
+  left: number;
+  height?: number;
+  width?: number;
+}
+
+export interface SelectionBounds {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 export interface PeerState {
   id: string;
-  user: any;
-  role: string;
+  user: UserProfile | { id: string; name?: string; color?: string; email?: string; avatar?: string | null };
+  role: UserRole | string;
   cursorRange: { index: number; length: number } | null;
-  cursorCoords: any;
-  selection: any;
+  cursorCoords: CursorCoordinates | null;
+  selection: { index: number; length: number } | null;
   status: string;
   lastSeen: number;
   joinedAt: number;
@@ -27,22 +43,26 @@ export class PresenceTracker {
   }
 
   on(event: string, callback: Function): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+    let set = this.listeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
     }
-    this.listeners.get(event)!.add(callback);
+    set.add(callback);
     return () => this.off(event, callback);
   }
 
   off(event: string, callback: Function): void {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event)!.delete(callback);
+    const set = this.listeners.get(event);
+    if (set) {
+      set.delete(callback);
     }
   }
 
-  emit(event: string, ...args: any[]): void {
-    if (this.listeners.has(event)) {
-      for (const callback of this.listeners.get(event)!) {
+  emit(event: string, ...args: unknown[]): void {
+    const set = this.listeners.get(event);
+    if (set) {
+      for (const callback of set) {
         try {
           callback(...args);
         } catch (err) {
@@ -52,32 +72,32 @@ export class PresenceTracker {
     }
   }
 
-  updatePeer(peerId: string, data: any = {}): PeerState | null {
+  updatePeer(peerId: string, data: Partial<PeerState> = {}): PeerState | null {
     if (!peerId) return null;
 
     const now = Date.now();
     const isNew = !this.peers.has(peerId);
-    const existing = this.peers.get(peerId) || ({} as Partial<PeerState>);
+    const existing = this.peers.get(peerId);
 
     const user = {
-      id: data.user?.id || existing.user?.id || peerId,
-      name: data.user?.name || existing.user?.name || `User ${peerId.slice(0, 5)}`,
-      color: data.user?.color || existing.user?.color || '#4285F4',
-      avatar: data.user?.avatar || existing.user?.avatar || null,
-      email: data.user?.email || existing.user?.email || null,
+      id: data.user?.id || existing?.user?.id || peerId,
+      name: data.user?.name || existing?.user?.name || `User ${peerId.slice(0, 5)}`,
+      color: data.user?.color || existing?.user?.color || '#4285F4',
+      avatar: data.user?.avatar || existing?.user?.avatar || null,
+      email: data.user?.email || existing?.user?.email || '',
       ...(data.user || {})
     };
 
     const peerState: PeerState = {
       id: peerId,
       user,
-      role: data.role !== undefined ? data.role : (existing.role || 'viewer'),
-      cursorRange: data.cursorRange !== undefined ? data.cursorRange : (existing.cursorRange || null),
-      cursorCoords: data.cursorCoords !== undefined ? data.cursorCoords : (existing.cursorCoords || null),
-      selection: data.selection !== undefined ? data.selection : (existing.selection || null),
-      status: data.status || existing.status || 'active',
+      role: data.role !== undefined ? data.role : (existing?.role || 'viewer'),
+      cursorRange: data.cursorRange !== undefined ? data.cursorRange : (existing?.cursorRange || null),
+      cursorCoords: data.cursorCoords !== undefined ? data.cursorCoords : (existing?.cursorCoords || null),
+      selection: data.selection !== undefined ? data.selection : (existing?.selection || null),
+      status: data.status || existing?.status || 'active',
       lastSeen: now,
-      joinedAt: existing.joinedAt || now
+      joinedAt: existing?.joinedAt || now
     };
 
     this.peers.set(peerId, peerState);
@@ -95,11 +115,15 @@ export class PresenceTracker {
     return peerState;
   }
 
-  updateCursor(peerId: string, cursorRange: any = null, cursorCoords: any = null): PeerState | null {
-    if (!this.peers.has(peerId)) {
+  updateCursor(
+    peerId: string,
+    cursorRange: { index: number; length: number } | null = null,
+    cursorCoords: CursorCoordinates | null = null
+  ): PeerState | null {
+    const peer = this.peers.get(peerId);
+    if (!peer) {
       return this.updatePeer(peerId, { cursorRange, cursorCoords });
     }
-    const peer = this.peers.get(peerId)!;
     peer.cursorRange = cursorRange;
     peer.cursorCoords = cursorCoords;
     peer.lastSeen = Date.now();
@@ -110,11 +134,14 @@ export class PresenceTracker {
     return peer;
   }
 
-  updateSelection(peerId: string, selection: any = null): PeerState | null {
-    if (!this.peers.has(peerId)) {
+  updateSelection(
+    peerId: string,
+    selection: { index: number; length: number } | null = null
+  ): PeerState | null {
+    const peer = this.peers.get(peerId);
+    if (!peer) {
       return this.updatePeer(peerId, { selection });
     }
-    const peer = this.peers.get(peerId)!;
     peer.selection = selection;
     peer.lastSeen = Date.now();
 
@@ -125,10 +152,10 @@ export class PresenceTracker {
   }
 
   updateRole(peerId: string, role: string): PeerState | null {
-    if (!this.peers.has(peerId)) {
+    const peer = this.peers.get(peerId);
+    if (!peer) {
       return this.updatePeer(peerId, { role });
     }
-    const peer = this.peers.get(peerId)!;
     peer.role = role;
     peer.lastSeen = Date.now();
 
@@ -139,8 +166,8 @@ export class PresenceTracker {
   }
 
   removePeer(peerId: string): boolean {
-    if (this.peers.has(peerId)) {
-      const peer = this.peers.get(peerId)!;
+    const peer = this.peers.get(peerId);
+    if (peer) {
       this.peers.delete(peerId);
       this.emit('leave', peer);
       this.emit('change', this.getAllPeers());

@@ -17,16 +17,16 @@ import {
   createCommentSyncPacket,
   type CollabPacket
 } from './protocol.ts';
-import { PresenceTracker, type PeerState } from './presence.ts';
+import { PresenceTracker, type PeerState, type CursorCoordinates } from './presence.ts';
 import { PermissionManager, ROLES, normalizeRole } from '../permissions/manager.ts';
-import type { UserRole } from '../types/index.ts';
+import type { UserRole, UserProfile, QuillDelta } from '../types/index.ts';
 
 export class MockBroadcastChannel {
   static channels: Map<string, Set<MockBroadcastChannel>> = new Map();
 
   public name: string;
   public closed: boolean;
-  public onmessage: ((event: { data: any; target: any }) => void) | null;
+  public onmessage: ((event: { data: unknown; target: MockBroadcastChannel }) => void) | null;
   public eventListeners: Map<string, Set<Function>>;
 
   constructor(name: string) {
@@ -35,13 +35,15 @@ export class MockBroadcastChannel {
     this.onmessage = null;
     this.eventListeners = new Map();
 
-    if (!MockBroadcastChannel.channels.has(name)) {
-      MockBroadcastChannel.channels.set(name, new Set());
+    let channelSet = MockBroadcastChannel.channels.get(name);
+    if (!channelSet) {
+      channelSet = new Set();
+      MockBroadcastChannel.channels.set(name, channelSet);
     }
-    MockBroadcastChannel.channels.get(name)!.add(this);
+    channelSet.add(this);
   }
 
-  postMessage(data: any): void {
+  postMessage(data: unknown): void {
     if (this.closed) {
       throw new Error(`Cannot postMessage on closed BroadcastChannel "${this.name}"`);
     }
@@ -49,7 +51,7 @@ export class MockBroadcastChannel {
     const peers = MockBroadcastChannel.channels.get(this.name);
     if (!peers) return;
 
-    let clonedData: any;
+    let clonedData: unknown;
     try {
       if (typeof structuredClone === 'function') {
         clonedData = structuredClone(data);
@@ -72,8 +74,9 @@ export class MockBroadcastChannel {
               console.error(`Error in MockBroadcastChannel onmessage:`, err);
             }
           }
-          if (peer.eventListeners.has('message')) {
-            for (const handler of peer.eventListeners.get('message')!) {
+          const listeners = peer.eventListeners.get('message');
+          if (listeners) {
+            for (const handler of listeners) {
               try {
                 handler(event);
               } catch (err) {
@@ -87,23 +90,27 @@ export class MockBroadcastChannel {
   }
 
   addEventListener(type: string, handler: Function): void {
-    if (!this.eventListeners.has(type)) {
-      this.eventListeners.set(type, new Set());
+    let set = this.eventListeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.eventListeners.set(type, set);
     }
-    this.eventListeners.get(type)!.add(handler);
+    set.add(handler);
   }
 
   removeEventListener(type: string, handler: Function): void {
-    if (this.eventListeners.has(type)) {
-      this.eventListeners.get(type)!.delete(handler);
+    const set = this.eventListeners.get(type);
+    if (set) {
+      set.delete(handler);
     }
   }
 
   close(): void {
     this.closed = true;
-    if (MockBroadcastChannel.channels.has(this.name)) {
-      MockBroadcastChannel.channels.get(this.name)!.delete(this);
-      if (MockBroadcastChannel.channels.get(this.name)!.size === 0) {
+    const channelSet = MockBroadcastChannel.channels.get(this.name);
+    if (channelSet) {
+      channelSet.delete(this);
+      if (channelSet.size === 0) {
         MockBroadcastChannel.channels.delete(this.name);
       }
     }
@@ -121,33 +128,37 @@ export interface CollabEngineOptions {
   cleanupIntervalMs?: number;
   useMockChannel?: boolean;
   autoStart?: boolean;
-  channel?: any;
-  [key: string]: any;
+  channel?: BroadcastChannel | MockBroadcastChannel | null;
 }
 
 export class CollaborationEngine {
   public docId: string;
-  public currentUser: any;
+  public currentUser: UserProfile;
   public currentRole: UserRole;
   public options: CollabEngineOptions;
   public presence: PresenceTracker;
   public permissions: PermissionManager;
-  public channel: any;
-  public heartbeatTimer: any;
-  public cleanupTimer: any;
+  public channel: BroadcastChannel | MockBroadcastChannel | null;
+  public heartbeatTimer: ReturnType<typeof setInterval> | null;
+  public cleanupTimer: ReturnType<typeof setInterval> | null;
   public remoteCursors: Map<string, HTMLElement>;
   public eventListeners: Map<string, Set<Function>>;
   public listeners: Record<string, Function | null>;
 
-  constructor(docId: string = 'doc_master', currentUser: any = {}, currentRole: any = ROLES.OWNER, options: CollabEngineOptions = {}) {
+  constructor(
+    docId: string = 'doc_master',
+    currentUser: Partial<UserProfile> = {},
+    currentRole: unknown = ROLES.OWNER,
+    options: CollabEngineOptions = {}
+  ) {
     this.docId = docId || 'doc_master';
     this.currentUser = {
       id: currentUser.id || `user_${Math.random().toString(36).substring(2, 9)}`,
       name: currentUser.name || 'Anonymous Collaborator',
       color: currentUser.color || '#4285F4',
       avatar: currentUser.avatar || null,
-      email: currentUser.email || null,
-      ...currentUser
+      email: currentUser.email || '',
+      role: normalizeRole(currentUser.role || currentRole, ROLES.OWNER)
     };
     this.currentRole = normalizeRole(currentRole, ROLES.OWNER);
 
@@ -218,19 +229,24 @@ export class CollaborationEngine {
   start(): void {
     if (this.channel) return;
 
+    const channelName = this.options.channelName || `gdocs_collab_${this.docId}`;
+
     if (this.options.channel) {
       this.channel = this.options.channel;
     } else if (!this.options.useMockChannel && typeof globalThis.BroadcastChannel === 'function') {
       try {
-        this.channel = new globalThis.BroadcastChannel(this.options.channelName!);
+        this.channel = new globalThis.BroadcastChannel(channelName);
       } catch (_e) {
-        this.channel = new MockBroadcastChannel(this.options.channelName!);
+        this.channel = new MockBroadcastChannel(channelName);
       }
     } else {
-      this.channel = new MockBroadcastChannel(this.options.channelName!);
+      this.channel = new MockBroadcastChannel(channelName);
     }
 
-    this.channel.onmessage = (event: any) => this.handleMessage(event.data || event);
+    this.channel.onmessage = (event: { data?: unknown } | unknown) => {
+      const data = event && typeof event === 'object' && 'data' in event ? (event as { data: unknown }).data : event;
+      this.handleMessage(data);
+    };
 
     this.broadcastPresence();
 
@@ -266,7 +282,7 @@ export class CollaborationEngine {
     this.stop();
   }
 
-  broadcast(type: string, payload: any = {}): void {
+  broadcast(type: string, payload: Record<string, unknown> = {}): void {
     if (!this.channel) return;
 
     const packet = createPacket(
@@ -284,7 +300,7 @@ export class CollaborationEngine {
     }
   }
 
-  broadcastDelta(delta: any, fullHtml: string | null = null, version: number | null = null): void {
+  broadcastDelta(delta: QuillDelta | unknown, fullHtml: string | null = null, version: number | null = null): void {
     if (!this.canEdit()) {
       console.warn(`User with role "${this.currentRole}" cannot broadcast deltas.`);
       return;
@@ -302,7 +318,11 @@ export class CollaborationEngine {
     }
   }
 
-  broadcastPresence(cursorRange: any = null, cursorCoords: any = null, status: string = 'active'): void {
+  broadcastPresence(
+    cursorRange: { index: number; length: number } | null = null,
+    cursorCoords: CursorCoordinates | null = null,
+    status: string = 'active'
+  ): void {
     const packet = createPresencePacket(
       this.currentUser,
       this.currentRole,
@@ -315,7 +335,10 @@ export class CollaborationEngine {
     }
   }
 
-  broadcastSelection(range: any = null, bounds: any = null): void {
+  broadcastSelection(
+    range: { index: number; length: number } | null = null,
+    bounds: { top: number; left: number; width: number; height: number } | null = null
+  ): void {
     const packet = createSelectionPacket(
       this.currentUser,
       this.currentRole,
@@ -360,7 +383,7 @@ export class CollaborationEngine {
     this.emit('permissionGrantedSelf', packet);
   }
 
-  broadcastDocSync(action: string = 'request', doc: any = null, version: number = 1): void {
+  broadcastDocSync(action: string = 'request', doc: unknown = null, version: number = 1): void {
     const packet = createDocSyncPacket(
       this.currentUser,
       this.currentRole,
@@ -373,7 +396,7 @@ export class CollaborationEngine {
     }
   }
 
-  broadcastCommentSync(action: string = 'create', comment: any = null, commentId: string | null = null): void {
+  broadcastCommentSync(action: string = 'create', comment: unknown = null, commentId: string | null = null): void {
     const packet = createCommentSyncPacket(
       this.currentUser,
       this.currentRole,
@@ -386,10 +409,9 @@ export class CollaborationEngine {
     }
   }
 
-  handleMessage(rawData: any): void {
-    if (!rawData) return;
-    const packet: CollabPacket | null = typeof rawData === 'object' ? rawData : null;
-    if (!packet) return;
+  handleMessage(rawData: unknown): void {
+    if (!rawData || typeof rawData !== 'object') return;
+    const packet = rawData as CollabPacket<Record<string, unknown>>;
 
     if (packet.senderId === this.currentUser.id) return;
     if (packet.docId && packet.docId !== this.docId) return;
@@ -404,20 +426,20 @@ export class CollaborationEngine {
 
     switch (type) {
       case MESSAGE_TYPES.PRESENCE: {
-        const updateData: any = {
-          user: payload.user || senderUser,
-          role: payload.role || senderRole,
-          cursorRange: payload.cursorRange,
-          cursorCoords: payload.cursorCoords,
-          status: payload.status || 'active'
+        const updateData: Partial<PeerState> = {
+          user: (payload.user as UserProfile) || senderUser,
+          role: (payload.role as UserRole) || senderRole,
+          cursorRange: payload.cursorRange as { index: number; length: number } | null,
+          cursorCoords: payload.cursorCoords as CursorCoordinates | null,
+          status: (payload.status as string) || 'active'
         };
         if (payload.selection !== undefined) {
-          updateData.selection = payload.selection;
+          updateData.selection = payload.selection as { index: number; length: number } | null;
         }
         const peer = this.presence.updatePeer(senderId, updateData);
 
         if (payload.cursorRange || payload.cursorCoords) {
-          this.renderRemoteCursor(senderId, peer?.user, payload.cursorRange, payload.cursorCoords);
+          this.renderRemoteCursor(senderId, peer?.user, payload.cursorRange as { index: number; length: number }, payload.cursorCoords as CursorCoordinates);
           this.emit('remoteCursor', { peerId: senderId, user: peer?.user, cursorRange: payload.cursorRange, cursorCoords: payload.cursorCoords });
         }
 
@@ -437,13 +459,13 @@ export class CollaborationEngine {
       }
 
       case MESSAGE_TYPES.SELECTION: {
-        this.presence.updateSelection(senderId, payload.range);
+        this.presence.updateSelection(senderId, payload.range as { index: number; length: number });
         this.emit('remoteSelection', { peerId: senderId, user: senderUser, range: payload.range, bounds: payload.bounds });
         break;
       }
 
       case MESSAGE_TYPES.PERMISSION_REQ: {
-        const requestingUser = payload.user || senderUser;
+        const requestingUser = (payload.user as UserProfile) || senderUser;
         this.emit('permissionRequest', requestingUser, packet);
         if (this.canManagePermissions() || this.canEdit()) {
           if (typeof this.listeners.onPermissionRequest === 'function') {
@@ -463,7 +485,7 @@ export class CollaborationEngine {
           }
           this.broadcastPresence();
         } else {
-          this.presence.updateRole(payload.targetUserId, payload.newRole);
+          this.presence.updateRole(String(payload.targetUserId), String(payload.newRole));
         }
         this.emit('permissionGrant', payload, packet);
         if (typeof this.listeners.onPermissionGrant === 'function') {
@@ -505,10 +527,16 @@ export class CollaborationEngine {
     }
   }
 
-  renderRemoteCursor(peerId: string, user: any = {}, range: any = null, coords: any = null, quillInstance: any = null): void {
+  renderRemoteCursor(
+    peerId: string,
+    user: Partial<UserProfile> = {},
+    range: { index: number; length: number } | null = null,
+    coords: CursorCoordinates | null = null,
+    quillInstance: { getBounds?: (index: number) => { top: number; left: number } | null } | null = null
+  ): void {
     if (typeof document === 'undefined') return;
 
-    const quill = quillInstance || (typeof window !== 'undefined' ? (window as any).quill : null);
+    const quill = quillInstance || ((typeof window !== 'undefined' && 'quill' in window) ? (window as unknown as { quill: { getBounds?: (index: number) => { top: number; left: number } | null } }).quill : null);
     let top = coords?.top;
     let left = coords?.left;
 
@@ -561,12 +589,12 @@ export class CollaborationEngine {
     this.remoteCursors.clear();
   }
 
-  setRole(newRole: any): void {
+  setRole(newRole: unknown): void {
     this.currentRole = normalizeRole(newRole, this.currentRole);
     this.permissions.setRole(this.currentRole);
   }
 
-  setUser(user: any = {}): void {
+  setUser(user: Partial<UserProfile> = {}): void {
     this.currentUser = { ...this.currentUser, ...user };
     this.permissions.userId = this.currentUser.id;
     this.broadcastPresence();

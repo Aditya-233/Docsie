@@ -3,7 +3,7 @@
  * for Google Docs document sharing and collaboration.
  */
 
-import type { UserRole } from '../types/index.ts';
+import type { UserRole, UserProfile } from '../types/index.ts';
 
 export const ROLES: {
   readonly OWNER: UserRole;
@@ -24,10 +24,35 @@ export const ROLE_RANKS: Readonly<Record<UserRole, number>> = Object.freeze({
   viewer: 10
 });
 
+export interface RolePermissions {
+  role: UserRole;
+  canEdit: boolean;
+  canComment: boolean;
+  canShare: boolean;
+  canDelete: boolean;
+  canManagePermissions: boolean;
+  canExport: boolean;
+  canView: boolean;
+}
+
+export interface ElevationRequest {
+  id: string;
+  userId: string;
+  user: UserProfile | { id: string; name?: string; color?: string; email?: string };
+  currentRole: UserRole;
+  requestedRole: UserRole;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  timestamp: number;
+  respondedAt: number | null;
+  respondedBy: string | null;
+  rejectionReason?: string;
+}
+
 /**
  * Normalize role string to lowercase standard role.
  */
-export function normalizeRole(role: any, defaultRole: UserRole = ROLES.VIEWER): UserRole {
+export function normalizeRole(role: unknown, defaultRole: UserRole = ROLES.VIEWER): UserRole {
   if (!role || typeof role !== 'string') return defaultRole;
   const lower = role.trim().toLowerCase() as UserRole;
   return Object.values(ROLES).includes(lower) ? lower : defaultRole;
@@ -36,7 +61,7 @@ export function normalizeRole(role: any, defaultRole: UserRole = ROLES.VIEWER): 
 /**
  * Check if a role string is a recognized valid role.
  */
-export function isValidRole(role: any): boolean {
+export function isValidRole(role: unknown): boolean {
   if (!role || typeof role !== 'string') return false;
   return Object.values(ROLES).includes(role.trim().toLowerCase() as UserRole);
 }
@@ -44,7 +69,7 @@ export function isValidRole(role: any): boolean {
 /**
  * Get numeric rank of a role for comparison.
  */
-export function getRoleRank(role: any): number {
+export function getRoleRank(role: unknown): number {
   const norm = normalizeRole(role, ROLES.VIEWER);
   return ROLE_RANKS[norm] || 0;
 }
@@ -53,40 +78,40 @@ export function getRoleRank(role: any): number {
  * Access Control Matrix static check functions.
  */
 export const AccessControl = Object.freeze({
-  canEdit(role: any): boolean {
+  canEdit(role: unknown): boolean {
     const norm = normalizeRole(role);
     return norm === ROLES.OWNER || norm === ROLES.EDITOR;
   },
 
-  canComment(role: any): boolean {
+  canComment(role: unknown): boolean {
     const norm = normalizeRole(role);
     return norm === ROLES.OWNER || norm === ROLES.EDITOR || norm === ROLES.COMMENTER;
   },
 
-  canShare(role: any): boolean {
+  canShare(role: unknown): boolean {
     const norm = normalizeRole(role);
     return norm === ROLES.OWNER || norm === ROLES.EDITOR;
   },
 
-  canDelete(role: any): boolean {
+  canDelete(role: unknown): boolean {
     const norm = normalizeRole(role);
     return norm === ROLES.OWNER;
   },
 
-  canManagePermissions(role: any): boolean {
+  canManagePermissions(role: unknown): boolean {
     const norm = normalizeRole(role);
     return norm === ROLES.OWNER;
   },
 
-  canExport(_role?: any): boolean {
+  canExport(_role?: unknown): boolean {
     return true; // All roles with access can export
   },
 
-  canView(_role?: any): boolean {
+  canView(_role?: unknown): boolean {
     return true; // All recognized roles can view
   },
 
-  getPermissions(role: any) {
+  getPermissions(role: unknown): RolePermissions {
     const norm = normalizeRole(role);
     return {
       role: norm,
@@ -107,10 +132,10 @@ export const AccessControl = Object.freeze({
 export class PermissionManager {
   public currentRole: UserRole;
   public userId: string | null;
-  public elevationRequests: Map<string, any>;
+  public elevationRequests: Map<string, ElevationRequest>;
   public listeners: Map<string, Set<Function>>;
 
-  constructor(initialRole: any = ROLES.VIEWER, userId: string | null = null) {
+  constructor(initialRole: unknown = ROLES.VIEWER, userId: string | null = null) {
     this.currentRole = normalizeRole(initialRole, ROLES.VIEWER);
     this.userId = userId;
     this.elevationRequests = new Map();
@@ -118,22 +143,26 @@ export class PermissionManager {
   }
 
   on(event: string, callback: Function): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+    let set = this.listeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
     }
-    this.listeners.get(event)!.add(callback);
+    set.add(callback);
     return () => this.off(event, callback);
   }
 
   off(event: string, callback: Function): void {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event)!.delete(callback);
+    const set = this.listeners.get(event);
+    if (set) {
+      set.delete(callback);
     }
   }
 
-  emit(event: string, ...args: any[]): void {
-    if (this.listeners.has(event)) {
-      for (const cb of this.listeners.get(event)!) {
+  emit(event: string, ...args: unknown[]): void {
+    const set = this.listeners.get(event);
+    if (set) {
+      for (const cb of set) {
         try {
           cb(...args);
         } catch (err) {
@@ -147,7 +176,7 @@ export class PermissionManager {
     return this.currentRole;
   }
 
-  setRole(newRole: any): UserRole {
+  setRole(newRole: unknown): UserRole {
     const prevRole = this.currentRole;
     this.currentRole = normalizeRole(newRole, prevRole);
     if (prevRole !== this.currentRole) {
@@ -160,44 +189,52 @@ export class PermissionManager {
     return this.currentRole;
   }
 
-  canEdit(role: any = this.currentRole): boolean {
+  canEdit(role: unknown = this.currentRole): boolean {
     return AccessControl.canEdit(role);
   }
 
-  canComment(role: any = this.currentRole): boolean {
+  canComment(role: unknown = this.currentRole): boolean {
     return AccessControl.canComment(role);
   }
 
-  canShare(role: any = this.currentRole): boolean {
+  canShare(role: unknown = this.currentRole): boolean {
     return AccessControl.canShare(role);
   }
 
-  canDelete(role: any = this.currentRole): boolean {
+  canDelete(role: unknown = this.currentRole): boolean {
     return AccessControl.canDelete(role);
   }
 
-  canManagePermissions(role: any = this.currentRole): boolean {
+  canManagePermissions(role: unknown = this.currentRole): boolean {
     return AccessControl.canManagePermissions(role);
   }
 
-  canExport(role: any = this.currentRole): boolean {
+  canExport(role: unknown = this.currentRole): boolean {
     return AccessControl.canExport(role);
   }
 
-  canView(role: any = this.currentRole): boolean {
+  canView(role: unknown = this.currentRole): boolean {
     return AccessControl.canView(role);
   }
 
-  getPermissions(role: any = this.currentRole) {
+  getPermissions(role: unknown = this.currentRole): RolePermissions {
     return AccessControl.getPermissions(role);
   }
 
-  requestRoleElevation({ requestedRole = ROLES.EDITOR, reason = '', user = null }: { requestedRole?: any; reason?: string; user?: any } = {}) {
+  requestRoleElevation({
+    requestedRole = ROLES.EDITOR,
+    reason = '',
+    user = null
+  }: {
+    requestedRole?: unknown;
+    reason?: string;
+    user?: UserProfile | { id: string; name?: string; color?: string; email?: string } | null;
+  } = {}): ElevationRequest {
     const targetRole = normalizeRole(requestedRole, ROLES.EDITOR);
     const requestingUser = user || { id: this.userId || 'anonymous' };
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    const request = {
+    const request: ElevationRequest = {
       id: requestId,
       userId: requestingUser.id,
       user: requestingUser,
@@ -215,7 +252,11 @@ export class PermissionManager {
     return request;
   }
 
-  approveRoleElevation(requestId: string, approverUser: any = null, approverRole: any = this.currentRole) {
+  approveRoleElevation(
+    requestId: string,
+    approverUser: UserProfile | { id: string } | string | null = null,
+    approverRole: unknown = this.currentRole
+  ): ElevationRequest {
     if (!this.canManagePermissions(approverRole) && !this.canEdit(approverRole)) {
       throw new Error('Unauthorized: Insufficient permissions to approve role elevation');
     }
@@ -227,7 +268,9 @@ export class PermissionManager {
 
     request.status = 'approved';
     request.respondedAt = Date.now();
-    request.respondedBy = approverUser ? (approverUser.id || approverUser) : 'owner';
+    request.respondedBy = approverUser
+      ? (typeof approverUser === 'object' ? approverUser.id : String(approverUser))
+      : 'owner';
 
     if (request.userId === this.userId) {
       this.setRole(request.requestedRole);
@@ -237,7 +280,11 @@ export class PermissionManager {
     return request;
   }
 
-  rejectRoleElevation(requestId: string, approverUser: any = null, reason: string = '') {
+  rejectRoleElevation(
+    requestId: string,
+    approverUser: UserProfile | { id: string } | string | null = null,
+    reason: string = ''
+  ): ElevationRequest {
     const request = this.elevationRequests.get(requestId);
     if (!request) {
       throw new Error(`Elevation request "${requestId}" not found`);
@@ -246,17 +293,19 @@ export class PermissionManager {
     request.status = 'rejected';
     request.rejectionReason = reason;
     request.respondedAt = Date.now();
-    request.respondedBy = approverUser ? (approverUser.id || approverUser) : 'owner';
+    request.respondedBy = approverUser
+      ? (typeof approverUser === 'object' ? approverUser.id : String(approverUser))
+      : 'owner';
 
     this.emit('elevationRejected', request);
     return request;
   }
 
-  getRequestById(requestId: string) {
+  getRequestById(requestId: string): ElevationRequest | null {
     return this.elevationRequests.get(requestId) || null;
   }
 
-  getElevationRequests(status: string = 'all') {
+  getElevationRequests(status: string = 'all'): ElevationRequest[] {
     const all = Array.from(this.elevationRequests.values());
     if (status === 'all') return all;
     return all.filter(r => r.status === status);

@@ -179,10 +179,10 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     awareness.setLocalStateField('user', initialLocalUser);
 
     const handleAwarenessChange = () => {
-      const states = awareness.getStates();
+      const states = awareness.getStates() as Map<number, { user?: Partial<UserProfile>; selection?: { index: number; length: number }; cursorRange?: { index: number; length: number }; cursorCoords?: { top: number; left: number; height: number } }>;
       const peerList: CollaboratorPeer[] = [];
 
-      states.forEach((state: any, clientId: number) => {
+      states.forEach((state, clientId) => {
         if (state && state.user) {
           peerList.push({
             id: state.user.id || `peer_${clientId}`,
@@ -212,17 +212,21 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     awareness.on('change', handleAwarenessChange);
     handleAwarenessChange();
 
-    const handleStatus = (event: any) => {
+    const handleStatus = (event: { connected?: boolean }) => {
       setIsConnected(Boolean(event.connected));
     };
-    const handleSynced = (event: any) => {
+    const handleSynced = (event: { synced?: boolean }) => {
       if (event.synced !== undefined) {
         setIsSynced(Boolean(event.synced));
       }
     };
 
-    (provider as any).on('status', handleStatus);
-    (provider as any).on('synced', handleSynced);
+    const eventProvider = provider as unknown as {
+      on(event: string, handler: (e: { connected?: boolean; synced?: boolean }) => void): void;
+      off(event: string, handler: (e: { connected?: boolean; synced?: boolean }) => void): void;
+    };
+    eventProvider.on('status', handleStatus);
+    eventProvider.on('synced', handleSynced);
 
     const permissionsMap = ydoc.getMap('permissions');
     const handlePermissionsChange = () => {
@@ -290,8 +294,8 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
       }
 
       awareness.off('change', handleAwarenessChange);
-      (provider as any).off('status', handleStatus);
-      (provider as any).off('synced', handleSynced);
+      eventProvider.off('status', handleStatus);
+      eventProvider.off('synced', handleSynced);
       permissionsMap.unobserve(handlePermissionsChange);
       accessRequestsArray.unobserve(handleAccessRequestsChange);
       metaMap.unobserve(handleMetaChange);
@@ -395,21 +399,20 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     const ydoc = ydocRef.current;
     if (!ydoc) return;
 
-    const accessRequestsArray = ydoc.getArray('accessRequests');
+    const accessRequestsArray = ydoc.getArray<AccessRequestItem>('accessRequests');
     const existingRequests = accessRequestsArray.toArray();
 
     const existingIndex = existingRequests.findIndex(
-      (req: any) => req.userId === currentUser.id && req.status === 'pending'
+      (req) => req.userId === currentUser.id && req.status === 'pending'
     );
 
-    const newRequest = {
+    const newRequest: AccessRequestItem = {
       id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       userId: currentUser.id,
       userName: currentUser.name,
       userEmail: currentUser.email || '',
-      userColor: currentUser.color,
+      avatarColor: currentUser.color,
       requestedRole: 'editor',
-      reason: reason,
       timestamp: Date.now(),
       status: 'pending'
     };
@@ -431,47 +434,43 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     if (!ydoc || !targetUserId) return;
 
     const permissionsMap = ydoc.getMap('permissions');
-    const accessRequestsArray = ydoc.getArray('accessRequests');
+    const accessRequestsArray = ydoc.getArray<AccessRequestItem>('accessRequests');
 
     ydoc.transact(() => {
       permissionsMap.set(targetUserId, newRole);
 
       const requests = accessRequestsArray.toArray();
-      requests.forEach((req: any, index: number) => {
+      requests.forEach((req, index) => {
         if (req && req.userId === targetUserId && req.status === 'pending') {
           accessRequestsArray.delete(index, 1);
           accessRequestsArray.insert(index, [{
             ...req,
-            status: 'approved',
-            resolvedBy: currentUser.id,
-            resolvedAt: Date.now()
+            status: 'approved'
           }]);
         }
       });
     });
-  }, [currentUser.id]);
+  }, []);
 
   const rejectEditAccess = useCallback((targetUserId: string) => {
     const ydoc = ydocRef.current;
     if (!ydoc || !targetUserId) return;
 
-    const accessRequestsArray = ydoc.getArray('accessRequests');
+    const accessRequestsArray = ydoc.getArray<AccessRequestItem>('accessRequests');
 
     ydoc.transact(() => {
       const requests = accessRequestsArray.toArray();
-      requests.forEach((req: any, index: number) => {
+      requests.forEach((req, index) => {
         if (req && req.userId === targetUserId && req.status === 'pending') {
           accessRequestsArray.delete(index, 1);
           accessRequestsArray.insert(index, [{
             ...req,
-            status: 'rejected',
-            resolvedBy: currentUser.id,
-            resolvedAt: Date.now()
+            status: 'denied'
           }]);
         }
       });
     });
-  }, [currentUser.id]);
+  }, []);
 
   const setPermission = useCallback((targetUserId: string, role: string | null) => {
     const ydoc = ydocRef.current;
@@ -515,7 +514,7 @@ export function useYjsDoc(config: UseYjsDocConfig | string = {}) {
     }
   }, [canRedo]);
 
-  const bindQuill = useCallback((quill: any) => {
+  const bindQuill = useCallback((quill: Quill | null) => {
     setQuillInstance(quill);
   }, []);
 

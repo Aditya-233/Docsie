@@ -5,6 +5,25 @@
 
 import type { HeadingItem } from '../types/index.ts';
 
+export interface HeadingTreeNode extends HeadingItem {
+  tagName?: string;
+  element?: HTMLElement | null;
+  children: HeadingTreeNode[];
+}
+
+export interface DocumentStatsDetailed {
+  words: number;
+  characters: number;
+  charactersNoSpaces: number;
+  paragraphs: number;
+  lines: number;
+  readingTimeMinutes: number;
+  readingTimeFormatted: string;
+  speakingTimeMinutes: number;
+  speakingTimeFormatted: string;
+  pagesEstimate: number;
+}
+
 export function slugifyHeading(text: string, existingSlugs: Set<string> | string[] = new Set()): string {
   const seen = existingSlugs instanceof Set ? existingSlugs : new Set(existingSlugs || []);
   let base = (text || '')
@@ -45,19 +64,23 @@ export function stripHtmlTags(html: string): string {
     .trim();
 }
 
-export function extractHeadings(source: any, options: { maxLevel?: number; defaultTitle?: string } = {}): HeadingItem[] {
+export function extractHeadings(
+  source: unknown,
+  options: { maxLevel?: number; defaultTitle?: string } = {}
+): HeadingItem[] {
   const maxLevel = options.maxLevel || 3;
   const defaultTitle = options.defaultTitle || 'Untitled section';
-  const headings: any[] = [];
+  const headings: HeadingItem[] = [];
   const existingSlugs = new Set<string>();
 
   if (!source) return headings;
 
-  if (typeof HTMLElement !== 'undefined' && (source instanceof HTMLElement || source.nodeType === 1)) {
+  if (typeof HTMLElement !== 'undefined' && (source instanceof HTMLElement || (source && typeof source === 'object' && 'nodeType' in source && (source as { nodeType: number }).nodeType === 1))) {
+    const elSource = source as HTMLElement;
     const selector = Array.from({ length: maxLevel }, (_, i) => `h${i + 1}`).join(', ');
-    const elements = source.querySelectorAll(selector);
+    const elements = elSource.querySelectorAll<HTMLElement>(selector);
 
-    elements.forEach((el: any, index: number) => {
+    elements.forEach((el, index) => {
       const tagName = el.tagName.toLowerCase();
       const level = parseInt(tagName.replace('h', ''), 10);
       const rawText = el.innerText || el.textContent || '';
@@ -76,23 +99,21 @@ export function extractHeadings(source: any, options: { maxLevel?: number; defau
         id: anchorId,
         text,
         level,
-        tagName,
         index,
-        slug: anchorId,
-        element: el
+        slug: anchorId
       });
     });
 
     return headings;
   }
 
-  if (typeof source === 'object' && source.root) {
-    return extractHeadings(source.root, options);
+  if (typeof source === 'object' && source !== null && 'root' in source) {
+    return extractHeadings((source as { root: unknown }).root, options);
   }
 
   if (typeof source === 'string') {
     const headingRegex = /<(h[1-6])(?:\s+[^>]*)?>([\s\S]*?)<\/\1>/gi;
-    let match;
+    let match: RegExpExecArray | null;
     let index = 0;
 
     while ((match = headingRegex.exec(source)) !== null) {
@@ -107,7 +128,6 @@ export function extractHeadings(source: any, options: { maxLevel?: number; defau
           id: anchorId,
           text,
           level,
-          tagName,
           slug: anchorId,
           index: index++
         });
@@ -118,16 +138,16 @@ export function extractHeadings(source: any, options: { maxLevel?: number; defau
   return headings;
 }
 
-export function buildHeadingTree(flatHeadings: any[] = []): any[] {
+export function buildHeadingTree(flatHeadings: HeadingItem[] = []): HeadingTreeNode[] {
   if (!Array.isArray(flatHeadings) || flatHeadings.length === 0) {
     return [];
   }
 
-  const rootNodes: any[] = [];
-  const stack: { level: number; node: any }[] = [];
+  const rootNodes: HeadingTreeNode[] = [];
+  const stack: { level: number; node: HeadingTreeNode }[] = [];
 
   for (const heading of flatHeadings) {
-    const node = {
+    const node: HeadingTreeNode = {
       ...heading,
       children: []
     };
@@ -148,7 +168,7 @@ export function buildHeadingTree(flatHeadings: any[] = []): any[] {
   return rootNodes;
 }
 
-export function extractOutline(source: any, options: { maxLevel?: number } = {}) {
+export function extractOutline(source: unknown, options: { maxLevel?: number } = {}) {
   const headings = extractHeadings(source, options);
   const tree = buildHeadingTree(headings);
   return {
@@ -158,7 +178,10 @@ export function extractOutline(source: any, options: { maxLevel?: number } = {})
   };
 }
 
-export function calculateStats(source: any, options: { wordsPerMinute?: number; speakingWordsPerMinute?: number } = {}) {
+export function calculateStats(
+  source: unknown,
+  options: { wordsPerMinute?: number; speakingWordsPerMinute?: number } = {}
+): DocumentStatsDetailed {
   const wpm = options.wordsPerMinute || 200;
   const speakingWpm = options.speakingWordsPerMinute || 130;
 
@@ -175,14 +198,16 @@ export function calculateStats(source: any, options: { wordsPerMinute?: number; 
     } else {
       plainText = source;
     }
-  } else if (source && typeof source.getText === 'function') {
-    plainText = source.getText();
-  } else if (typeof HTMLElement !== 'undefined' && (source instanceof HTMLElement || source?.nodeType === 1)) {
-    const paragraphs = source.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
-    paragraphCount = Array.from(paragraphs).filter((p: any) => (p.innerText || p.textContent || '').trim().length > 0).length;
-    plainText = (source as any).innerText || (source as any).textContent || '';
-  } else if (source && typeof source === 'object' && source.root) {
-    plainText = source.root.innerText || source.root.textContent || '';
+  } else if (source && typeof source === 'object' && 'getText' in source && typeof (source as { getText: () => string }).getText === 'function') {
+    plainText = (source as { getText: () => string }).getText();
+  } else if (typeof HTMLElement !== 'undefined' && (source instanceof HTMLElement || (source && typeof source === 'object' && 'nodeType' in source && (source as { nodeType: number }).nodeType === 1))) {
+    const elSource = source as HTMLElement;
+    const paragraphs = elSource.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
+    paragraphCount = Array.from(paragraphs).filter((p) => (p.textContent || '').trim().length > 0).length;
+    plainText = elSource.textContent || '';
+  } else if (source && typeof source === 'object' && 'root' in source) {
+    const root = (source as { root: { textContent?: string } }).root;
+    plainText = root?.textContent || '';
   }
 
   const trimmed = plainText.trim();
@@ -239,19 +264,19 @@ export class OutlineExtractor {
     this.wordsPerMinute = options.wordsPerMinute || 200;
   }
 
-  extractHeadings(source: any) {
+  extractHeadings(source: unknown): HeadingItem[] {
     return extractHeadings(source, { maxLevel: this.maxLevel });
   }
 
-  buildHeadingTree(headings: any[]) {
+  buildHeadingTree(headings: HeadingItem[]): HeadingTreeNode[] {
     return buildHeadingTree(headings);
   }
 
-  extractOutline(source: any) {
+  extractOutline(source: unknown) {
     return extractOutline(source, { maxLevel: this.maxLevel });
   }
 
-  calculateStats(source: any) {
+  calculateStats(source: unknown): DocumentStatsDetailed {
     return calculateStats(source, { wordsPerMinute: this.wordsPerMinute });
   }
 }

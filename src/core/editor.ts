@@ -3,6 +3,8 @@
  * Manages typography whitelists, format attributes, table insertion, format painter, and history.
  */
 
+import type { QuillFormat } from '../types/index.ts';
+
 export const FONT_SIZES_WHITELIST: readonly string[] = [
   '10px', '12px', '14px', '15px', '16px', '18px', '22px', '28px', '36px', '48px', '72px'
 ];
@@ -26,7 +28,7 @@ export const HEADING_LEVELS: readonly HeadingLevel[] = [
 
 export const FORMAT_TOGGLES: readonly string[] = ['bold', 'italic', 'underline', 'strike'];
 
-export function toggleFormatState(currentFormats: Record<string, any> = {}, formatKey: string): Record<string, any> {
+export function toggleFormatState(currentFormats: QuillFormat = {}, formatKey: string): QuillFormat {
   const next = { ...currentFormats };
   if (next[formatKey]) {
     delete next[formatKey];
@@ -36,19 +38,19 @@ export function toggleFormatState(currentFormats: Record<string, any> = {}, form
   return next;
 }
 
-export function getHeadingTag(level: any): string {
+export function getHeadingTag(level: unknown): string {
   if (level === 1 || level === '1') return 'h1';
   if (level === 2 || level === '2') return 'h2';
   if (level === 3 || level === '3') return 'h3';
   return 'p';
 }
 
-export function isValidHeadingLevel(level: any): boolean {
+export function isValidHeadingLevel(level: unknown): boolean {
   return level === false || level === 1 || level === 2 || level === 3 || level === '1' || level === '2' || level === '3' || level === 'normal';
 }
 
 export class FormatPainter {
-  private storedFormat: Record<string, any> | null;
+  private storedFormat: QuillFormat | null;
   private active: boolean;
 
   constructor() {
@@ -56,7 +58,7 @@ export class FormatPainter {
     this.active = false;
   }
 
-  copyFormat(formatMap: Record<string, any> | null): Record<string, any> | null {
+  copyFormat(formatMap: QuillFormat | null): QuillFormat | null {
     if (!formatMap || typeof formatMap !== 'object') {
       this.clear();
       return null;
@@ -66,7 +68,7 @@ export class FormatPainter {
     return { ...this.storedFormat };
   }
 
-  applyFormat(targetFormats: Record<string, any> = {}): Record<string, any> {
+  applyFormat(targetFormats: QuillFormat = {}): QuillFormat {
     if (!this.hasFormat()) {
       return { ...targetFormats };
     }
@@ -84,7 +86,7 @@ export class FormatPainter {
     return this.active && this.storedFormat !== null;
   }
 
-  getFormat(): Record<string, any> | null {
+  getFormat(): QuillFormat | null {
     return this.storedFormat ? { ...this.storedFormat } : null;
   }
 }

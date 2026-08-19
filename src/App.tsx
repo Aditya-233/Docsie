@@ -77,7 +77,8 @@ export default function App() {
   const [replaceQuery, setReplaceQuery] = useState<string>('');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isMandatoryAuth, setIsMandatoryAuth] = useState<boolean>(false);
-  const [isDashboardOpen, setIsDashboardOpen] = useState<boolean>(false);
+  const [comments, setComments] = useState<DocumentComment[]>([]);
+  const [comments, setComments] = useState<DocumentComment[]>([]);
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
@@ -158,8 +159,8 @@ export default function App() {
         const restoredText = ytext.toString();
         addLog('STORAGE_RESTORE', `Restored ${ytext.length} chars: "${restoredText.slice(0, 40)}"`);
       }
-    } catch (e: any) {
-      addLog('ERROR', `Storage restore failed: ${e.message}`);
+    } catch (e: unknown) {
+      addLog('ERROR', `Storage restore failed: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     // ── 4. Open BroadcastChannel & WebRTC Signaling Mesh ─────────────────
@@ -168,7 +169,7 @@ export default function App() {
     channelRef.current = channel;
     addLog('CHANNEL_READY', `BroadcastChannel '${channelName}'`);
 
-    let webrtcProvider: any = null;
+    let webrtcProvider: WebrtcProvider | null = null;
     try {
       webrtcProvider = new WebrtcProvider(`gdocs_room_${initialDocId}`, ydoc, {
         signaling: [
@@ -181,11 +182,17 @@ export default function App() {
       addLog('WEBRTC_READY', `WebRTC signaling mesh active on 'gdocs_room_${initialDocId}'`);
 
       webrtcProvider.awareness.on('change', () => {
-        const states = webrtcProvider.awareness.getStates();
-        states.forEach((state: any) => {
-          if (state.user && state.user.id !== effectiveUser.id) {
+        if (!webrtcProvider) return;
+        const states = webrtcProvider.awareness.getStates() as Map<number, { user?: Partial<UserProfile> }>;
+        states.forEach((state) => {
+          if (state.user && state.user.id && state.user.id !== effectiveUser.id) {
             knownPeersRef.current.set(state.user.id, {
-              ...state.user,
+              id: state.user.id,
+              name: state.user.name || 'Collaborator',
+              email: state.user.email || '',
+              color: state.user.color || '#4285F4',
+              avatar: state.user.avatar || null,
+              role: state.user.role || 'editor',
               isSelf: false,
               lastSeen: Date.now()
             });
@@ -214,7 +221,7 @@ export default function App() {
     };
 
     // ── 6. PIPELINE A: Y.Doc update → Save to localStorage + Broadcast ────
-    ydoc.on('update', (update: Uint8Array, origin: any) => {
+    ydoc.on('update', (update: Uint8Array, origin: unknown) => {
       try {
         const state = Y.encodeStateAsUpdate(ydoc);
         localStorage.setItem(`gdocs_ydoc_${initialDocId}`, JSON.stringify(Array.from(state)));
@@ -275,8 +282,8 @@ export default function App() {
           try {
             Y.applyUpdate(ydoc, new Uint8Array(msg.update), 'remote_handshake');
             addLog('HANDSHAKE_APPLY', `Got SYNC_STEP_2 (${msg.update.length}B) from ${msg.user?.name}`);
-          } catch (e: any) {
-            addLog('ERROR', `SYNC_STEP_2 apply failed: ${e.message}`);
+          } catch (e: unknown) {
+            addLog('ERROR', `SYNC_STEP_2 apply failed: ${e instanceof Error ? e.message : String(e)}`);
           }
           break;
         }
@@ -286,8 +293,8 @@ export default function App() {
           try {
             Y.applyUpdate(ydoc, new Uint8Array(msg.update), 'remote_delta');
             addLog('DELTA_RECV', `From ${msg.user?.name}: "${ytext.toString().slice(0, 40)}"`);
-          } catch (e: any) {
-            addLog('ERROR', `CRDT_DELTA apply failed: ${e.message}`);
+          } catch (e: unknown) {
+            addLog('ERROR', `CRDT_DELTA apply failed: ${e instanceof Error ? e.message : String(e)}`);
           }
           break;
         }
@@ -312,8 +319,29 @@ export default function App() {
           break;
         }
 
-        case 'HEARTBEAT':
+        case 'COMMENTS_UPDATE': {
+          if (Array.isArray(msg.comments)) {
+            setComments(msg.comments);
+          }
           break;
+        }
+
+        case 'HEARTBEAT': {
+          if (msg.user && msg.clientId !== (userProfileRef.current?.id || effectiveUser.id)) {
+            knownPeersRef.current.set(msg.clientId, {
+              id: msg.clientId,
+              name: msg.user.name || 'Collaborator',
+              email: msg.user.email || '',
+              color: msg.user.color || '#4285F4',
+              avatar: msg.user.avatar || null,
+              role: msg.user.role || 'editor',
+              isSelf: false,
+              lastSeen: Date.now()
+            });
+            updateRoster();
+          }
+          break;
+        }
       }
     };
 
@@ -353,7 +381,9 @@ export default function App() {
         placeholder: 'Type @ to insert or start typing...',
         modules: {
           toolbar: false,
-          cursors: true,
+          cursors: {
+            transformOnTextChange: true
+          },
           history: { userOnly: true }
         },
         readOnly: initialRole === ROLES.VIEWER || initialRole === ROLES.COMMENTER
@@ -367,10 +397,10 @@ export default function App() {
         addLog('QUILL_PREPOPULATE', `Pre-filled Quill with ${restoredText.length} restored chars`);
       }
 
-      quill.on('text-change', (delta: any, _oldDelta: any, source: string) => {
-        if (source === 'user') {
+      quill.on('text-change', (delta: { ops?: unknown[] }, _oldDelta: unknown, source: string) => {
+        if (source === 'user' && delta.ops) {
           ydoc.transact(() => {
-            ytext.applyDelta(delta.ops);
+            ytext.applyDelta(delta.ops as Parameters<typeof ytext.applyDelta>[0]);
           }, 'user_input');
 
           const currentTxt = quill.getText().replace(/\n$/, '');
@@ -390,7 +420,7 @@ export default function App() {
         }
       });
 
-      quill.on('selection-change', (range: any) => {
+      quill.on('selection-change', (range: { index: number; length: number } | null) => {
         const currentUserVal = userProfileRef.current || effectiveUser;
         channel.postMessage({
           type: 'REMOTE_CURSOR',

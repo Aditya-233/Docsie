@@ -40,7 +40,7 @@ export interface CommentReply {
   author: CommentAuthor | string;
   authorColor: string;
   text: string;
-  createdAt: number;
+  updatedAt?: number;
 }
 
 export interface DocumentComment {
@@ -49,7 +49,7 @@ export interface DocumentComment {
   authorColor: string;
   text: string;
   range: { index: number; length: number };
-  createdAt: number;
+  updatedAt?: number;
   resolved: boolean;
   replies: CommentReply[];
   status?: 'open' | 'resolved';
@@ -99,4 +99,38 @@ export interface DocumentStats {
   charactersNoSpaces: number;
   paragraphs: number;
   readingTimeMinutes: number;
+}
+
+export interface QuillOp {
+  insert?: string | Record<string, unknown>;
+  delete?: number;
+  retain?: number;
+  attributes?: Record<string, unknown>;
+}
+
+export interface QuillDelta {
+  ops: QuillOp[];
+}
+
+export interface QuillRange {
+  index: number;
+  length: number;
+}
+
+export interface QuillBounds {
+  top: number;
+  left: number;
+  width?: number;
+  height?: number;
+}
+
+export type QuillFormat = Record<string, unknown>;
+
+export interface VersionSnapshot {
+  id: string;
+  version: number;
+  timestamp: number;
+  html: string;
+  author: UserProfile | string;
+  delta?: QuillDelta | null;
 }

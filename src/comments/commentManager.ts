@@ -3,7 +3,7 @@
  * resolution, deletion, filtering, and text anchor range adjustments.
  */
 
-import type { DocumentComment, CommentReply } from '../types/index.ts';
+import type { DocumentComment, CommentReply, CommentAuthor } from '../types/index.ts';
 
 export function generateCommentId(prefix: string = 'c'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
@@ -13,7 +13,7 @@ export class CommentManager {
   private comments: Map<string, DocumentComment>;
   private listeners: Map<string, Set<Function>>;
 
-  constructor(initialComments: any[] = []) {
+  constructor(initialComments: DocumentComment[] = []) {
     this.comments = new Map();
     this.listeners = new Map();
 

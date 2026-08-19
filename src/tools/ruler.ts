@@ -3,6 +3,8 @@
  * for Google Docs Clone.
  */
 
+import type { RulerMargins } from '../types/index.ts';
+
 export const DPI = 96;
 
 export const PAGE_PRESETS = Object.freeze({
@@ -140,7 +142,17 @@ export class RulerManager {
     firstLineIndent: number;
   };
 
-  constructor(options: any = {}) {
+  constructor(options: {
+    pageWidthPx?: number;
+    pageHeightPx?: number;
+    dpi?: number;
+    minContentWidth?: number;
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+    firstLineIndent?: number;
+  } = {}) {
     this.pageWidthPx = options.pageWidthPx || PAGE_PRESETS.LETTER.widthPx;
     this.pageHeightPx = options.pageHeightPx || PAGE_PRESETS.LETTER.heightPx;
     this.dpi = options.dpi || DPI;
@@ -155,7 +167,7 @@ export class RulerManager {
     };
   }
 
-  setMargins(margins: any = {}) {
+  setMargins(margins: Partial<RulerMargins> = {}): RulerMargins {
     if (margins.top !== undefined) this.margins.top = clampMargin(margins.top, 0, this.pageHeightPx - 100);
     if (margins.bottom !== undefined) this.margins.bottom = clampMargin(margins.bottom, 0, this.pageHeightPx - 100);
     if (margins.left !== undefined) this.margins.left = clampMargin(margins.left, 0, this.pageWidthPx - this.margins.right - this.minContentWidth);
@@ -164,8 +176,8 @@ export class RulerManager {
     return this.getMargins();
   }
 
-  setMarginsInches(inchesMargins: any = {}) {
-    const pxMargins: any = {};
+  setMarginsInches(inchesMargins: Partial<RulerMargins> = {}): RulerMargins {
+    const pxMargins: Partial<RulerMargins> = {};
     if (inchesMargins.top !== undefined) pxMargins.top = inchesToPx(inchesMargins.top, this.dpi);
     if (inchesMargins.right !== undefined) pxMargins.right = inchesToPx(inchesMargins.right, this.dpi);
     if (inchesMargins.bottom !== undefined) pxMargins.bottom = inchesToPx(inchesMargins.bottom, this.dpi);
@@ -173,11 +185,11 @@ export class RulerManager {
     return this.setMargins(pxMargins);
   }
 
-  getMargins() {
+  getMargins(): RulerMargins {
     return { ...this.margins };
   }
 
-  getMarginsInches() {
+  getMarginsInches(): RulerMargins {
     return {
       top: pxToInches(this.margins.top, this.dpi),
       right: pxToInches(this.margins.right, this.dpi),
@@ -187,7 +199,12 @@ export class RulerManager {
     };
   }
 
-  handleDrag(markerType: 'left' | 'firstLine' | 'right', clientX: number, rulerRect: any, snap: boolean = false) {
+  handleDrag(
+    markerType: 'left' | 'firstLine' | 'right',
+    clientX: number,
+    rulerRect: { left?: number; width?: number },
+    snap: boolean = false
+  ) {
     const currentFirstLine = this.margins.left + this.margins.firstLineIndent;
     const result = calculateDragConstraints({
       markerType,

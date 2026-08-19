@@ -3,7 +3,7 @@
  */
 
 import { ROLES, normalizeRole } from './manager.ts';
-import type { UserRole } from '../types/index.ts';
+import type { UserRole, UserProfile } from '../types/index.ts';
 
 export interface GenerateShareUrlOptions {
   baseUrl?: string;
@@ -107,11 +107,21 @@ export function parseShareUrl(urlOrString: string = ''): ParsedShareUrl {
   };
 }
 
+export interface CollaboratorRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar: string | null;
+  addedAt: number;
+  updatedAt: number;
+}
+
 export class CollaboratorListManager {
-  private collaborators: Map<string, any>;
+  private collaborators: Map<string, CollaboratorRecord>;
   private listeners: Map<string, Set<Function>>;
 
-  constructor(initialCollaborators: any[] = []) {
+  constructor(initialCollaborators: Partial<CollaboratorRecord>[] = []) {
     this.collaborators = new Map();
     this.listeners = new Map();
     if (Array.isArray(initialCollaborators)) {
@@ -120,22 +130,26 @@ export class CollaboratorListManager {
   }
 
   on(event: string, callback: Function): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+    let set = this.listeners.get(event);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(event, set);
     }
-    this.listeners.get(event)!.add(callback);
+    set.add(callback);
     return () => this.off(event, callback);
   }
 
   off(event: string, callback: Function): void {
-    if (this.listeners.has(event)) {
-      this.listeners.get(event)!.delete(callback);
+    const set = this.listeners.get(event);
+    if (set) {
+      set.delete(callback);
     }
   }
 
-  emit(event: string, ...args: any[]): void {
-    if (this.listeners.has(event)) {
-      for (const cb of this.listeners.get(event)!) {
+  emit(event: string, ...args: unknown[]): void {
+    const set = this.listeners.get(event);
+    if (set) {
+      for (const cb of set) {
         try {
           cb(...args);
         } catch (e) {
@@ -145,19 +159,19 @@ export class CollaboratorListManager {
     }
   }
 
-  addCollaborator(data: any = {}) {
+  addCollaborator(data: Partial<CollaboratorRecord> | Partial<UserProfile> = {}): CollaboratorRecord {
     const id = data.id || `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const role = normalizeRole(data.role, ROLES.VIEWER);
     const isNew = !this.collaborators.has(id);
-    const existing = this.collaborators.get(id) || {};
+    const existing = this.collaborators.get(id);
 
-    const collaborator = {
+    const collaborator: CollaboratorRecord = {
       id,
-      name: data.name || existing.name || 'Anonymous Collaborator',
-      email: data.email || existing.email || '',
+      name: data.name || existing?.name || 'Anonymous Collaborator',
+      email: data.email || existing?.email || '',
       role,
-      avatar: data.avatar || existing.avatar || null,
-      addedAt: existing.addedAt || Date.now(),
+      avatar: data.avatar || existing?.avatar || null,
+      addedAt: existing?.addedAt || Date.now(),
       updatedAt: Date.now()
     };
 
@@ -173,11 +187,11 @@ export class CollaboratorListManager {
     return collaborator;
   }
 
-  updateRole(userId: string, newRole: any) {
-    if (!this.collaborators.has(userId)) {
+  updateRole(userId: string, newRole: unknown): CollaboratorRecord | null {
+    const collaborator = this.collaborators.get(userId);
+    if (!collaborator) {
       return null;
     }
-    const collaborator = this.collaborators.get(userId);
     collaborator.role = normalizeRole(newRole, collaborator.role);
     collaborator.updatedAt = Date.now();
 
@@ -187,8 +201,8 @@ export class CollaboratorListManager {
   }
 
   removeCollaborator(userId: string): boolean {
-    if (this.collaborators.has(userId)) {
-      const removed = this.collaborators.get(userId);
+    const removed = this.collaborators.get(userId);
+    if (removed) {
       this.collaborators.delete(userId);
       this.emit('remove', removed);
       this.emit('change', this.getAllCollaborators());
@@ -197,7 +211,7 @@ export class CollaboratorListManager {
     return false;
   }
 
-  getCollaborator(userId: string) {
+  getCollaborator(userId: string): CollaboratorRecord | null {
     return this.collaborators.get(userId) || null;
   }
 
@@ -205,11 +219,11 @@ export class CollaboratorListManager {
     return this.collaborators.has(userId);
   }
 
-  getAllCollaborators(): any[] {
+  getAllCollaborators(): CollaboratorRecord[] {
     return Array.from(this.collaborators.values());
   }
 
-  getByRole(role: any): any[] {
+  getByRole(role: unknown): CollaboratorRecord[] {
     const norm = normalizeRole(role);
     return this.getAllCollaborators().filter(c => c.role === norm);
   }
@@ -218,11 +232,11 @@ export class CollaboratorListManager {
     return this.collaborators.size;
   }
 
-  toJSON(): any[] {
+  toJSON(): CollaboratorRecord[] {
     return this.getAllCollaborators();
   }
 
-  loadFromJSON(array: any[] = []): void {
+  loadFromJSON(array: Partial<CollaboratorRecord>[] = []): void {
     this.collaborators.clear();
     if (Array.isArray(array)) {
       for (const item of array) {
@@ -248,7 +262,7 @@ export class ShareManager {
   public docId: string;
   public collaborators: CollaboratorListManager;
 
-  constructor(docId: string = 'doc_master', initialCollaborators: any[] = []) {
+  constructor(docId: string = 'doc_master', initialCollaborators: Partial<CollaboratorRecord>[] = []) {
     this.docId = docId;
     this.collaborators = new CollaboratorListManager(initialCollaborators);
   }
