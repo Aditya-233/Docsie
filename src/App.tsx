@@ -22,7 +22,7 @@ import { authManager } from './auth/authManager.ts';
 import { WebrtcProvider } from 'y-webrtc';
 
 import { Eye, X } from 'lucide-react';
-import type { UserProfile, UserRole, RulerMargins, CollaboratorPeer, AccessRequestItem } from './types/index.ts';
+import type { UserProfile, UserRole, RulerMargins, CollaboratorPeer, AccessRequestItem, DocumentComment } from './types/index.ts';
 
 try {
   Quill.register('modules/cursors', QuillCursors, true);
@@ -78,7 +78,8 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isMandatoryAuth, setIsMandatoryAuth] = useState<boolean>(false);
   const [comments, setComments] = useState<DocumentComment[]>([]);
-  const [comments, setComments] = useState<DocumentComment[]>([]);
+  const [isDashboardOpen, setIsDashboardOpen] = useState<boolean>(false);
+
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);

@@ -40,6 +40,7 @@ export interface CommentReply {
   author: CommentAuthor | string;
   authorColor: string;
   text: string;
+  createdAt: number;
   updatedAt?: number;
 }
 
@@ -49,6 +50,7 @@ export interface DocumentComment {
   authorColor: string;
   text: string;
   range: { index: number; length: number };
+  createdAt: number;
   updatedAt?: number;
   resolved: boolean;
   replies: CommentReply[];

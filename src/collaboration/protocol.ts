@@ -121,7 +121,7 @@ export function isValidPacket(packet: unknown): boolean {
 
 export function createPacket<T = Record<string, unknown>>(
   type: string,
-  senderUser: UserProfile | { id: string; name?: string; color?: string; email?: string } | string = {},
+  senderUser: UserProfile | { id: string; name?: string; color?: string; email?: string } | string = 'anonymous',
   senderRole: string = 'viewer',
   docId: string = 'default',
   payload: T = {} as T
