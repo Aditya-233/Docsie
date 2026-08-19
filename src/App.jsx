@@ -12,11 +12,14 @@ import Toolbar from './components/Toolbar.jsx';
 import Ruler from './components/Ruler.jsx';
 import ShareModal from './components/ShareModal.jsx';
 import AccessRequestToast from './components/AccessRequestToast.jsx';
+import AuthModal from './components/AuthModal.jsx';
+import DocumentDashboard from './components/DocumentDashboard.jsx';
 
 import { parseShareUrl, generateShareUrl } from './permissions/share.js';
 import { ROLES, normalizeRole } from './permissions/manager.js';
 import { FormatPainter } from './core/editor.js';
 import { DocumentExporter } from './export/exporter.js';
+import { authManager } from './auth/authManager.js';
 import { WebrtcProvider } from 'y-webrtc';
 
 import { Eye, Wifi, Copy, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react';
@@ -73,6 +76,8 @@ export default function App() {
     const [showFindReplace, setShowFindReplace] = useState(false);
     const [findQuery, setFindQuery] = useState('');
     const [replaceQuery, setReplaceQuery] = useState('');
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
     const editorContainerRef = useRef(null);
     const quillRef = useRef(null);
@@ -569,16 +574,53 @@ export default function App() {
         }
     }, [findQuery, replaceQuery, handleFindNext]);
 
-    const handleCopyLogs = useCallback(() => {
-        navigator.clipboard.writeText(logs.map(l => `[${l.timestamp}] [${l.category}] ${l.message}`).join('\n'));
-    }, [logs]);
+    const handleUpdateProfile = useCallback(({ name, color }) => {
+        const updated = authManager.updateProfile({ name, color });
+        setCurrentUser(updated);
+        userProfileRef.current = updated;
+        if (channelRef.current) {
+            channelRef.current.postMessage({
+                type: 'REMOTE_CURSOR',
+                clientId: updated.id,
+                user: updated,
+                range: quillRef.current?.getSelection() || null
+            });
+        }
+        addLog('PROFILE', `Updated display name to '${name}'`);
+    }, [addLog]);
+
+    const handleAuthSuccess = useCallback((user) => {
+        setCurrentUser(user);
+        userProfileRef.current = user;
+        addLog('AUTH', `Signed in as '${user.name}' (${user.email})`);
+    }, [addLog]);
+
+    const handleLogout = useCallback(() => {
+        authManager.logout();
+        const guest = authManager.loginAsGuest('Collaborator', null, currentRole);
+        setCurrentUser(guest);
+        userProfileRef.current = guest;
+        addLog('AUTH', 'Signed out. Switched to guest session.');
+    }, [currentRole, addLog]);
+
+    const handleOpenDocument = useCallback((selectedDocId) => {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.hash = `#doc=${selectedDocId}&role=editor&user=${encodeURIComponent(currentUser.name)}`;
+        window.location.href = currentUrl.toString();
+        window.location.reload();
+    }, [currentUser]);
+
+    const handleNewDocument = useCallback(() => {
+        const newDocId = 'doc_' + Math.random().toString(36).substring(2, 9);
+        const currentUrl = new URL(window.location.href);
+        currentUrl.hash = `#doc=${newDocId}&role=owner&user=${encodeURIComponent(currentUser.name)}`;
+        window.location.href = currentUrl.toString();
+        window.location.reload();
+    }, [currentUser]);
 
     const handleMenuAction = useCallback((action) => {
         if (action === 'new') {
-            const newDocId = 'doc_' + Math.random().toString(36).substring(2, 9);
-            const currentUrl = new URL(window.location.href);
-            currentUrl.hash = `#doc=${newDocId}&role=owner&user=Alice`;
-            window.open(currentUrl.toString(), '_blank');
+            handleNewDocument();
         } else if (action === 'download_md') {
             const exporter = new DocumentExporter({ title, content: quillRef.current?.root.innerHTML || '' });
             exporter.download('md');
@@ -594,7 +636,7 @@ export default function App() {
         } else if (action === 'download_pdf') {
             window.print();
         }
-    }, [title]);
+    }, [title, handleNewDocument]);
 
     const isReadOnly = currentRole === ROLES.VIEWER || currentRole === ROLES.COMMENTER;
 
@@ -616,6 +658,10 @@ export default function App() {
                 onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
                 onOpenFindReplace={() => setShowFindReplace(true)}
                 onMenuAction={handleMenuAction}
+                onOpenDashboard={() => setIsDashboardOpen(true)}
+                onUpdateProfile={handleUpdateProfile}
+                onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                onLogout={handleLogout}
             />
 
             {isReadOnly && (
@@ -780,6 +826,22 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* User Authentication & Quick Profile Modal */}
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                onAuthSuccess={handleAuthSuccess}
+            />
+
+            {/* Google Docs Home Dashboard ("My Documents" Library) */}
+            {isDashboardOpen && (
+                <DocumentDashboard
+                    onOpenDocument={handleOpenDocument}
+                    onNewDocument={handleNewDocument}
+                    onClose={() => setIsDashboardOpen(false)}
+                />
             )}
         </div>
     );

@@ -20,6 +20,7 @@ import {
   Eye,
   Edit3
 } from 'lucide-react';
+import UserProfileMenu from './UserProfileMenu.jsx';
 
 /**
  * Header Component for Google Docs.
@@ -48,7 +49,11 @@ export default function Header({
   theme = 'light',
   onToggleTheme,
   showRuler = true,
-  onToggleRuler
+  onToggleRuler,
+  onOpenDashboard,
+  onUpdateProfile,
+  onOpenAuthModal,
+  onLogout
 }) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
@@ -106,10 +111,10 @@ export default function Header({
         {/* Left Section: Doc Icon + Editable Title + Icons + Sub-row Menu */}
         <div className="flex items-start gap-3">
           {/* Google Docs Icon */}
-          <a
-            href="#"
-            title="Docs home"
-            className="mt-1 flex items-center justify-center w-10 h-10 hover:bg-[#e0e8f6] dark:hover:bg-[#333538] rounded-full transition-colors"
+          <button
+            onClick={onOpenDashboard}
+            title="Docs home (My Documents)"
+            className="mt-1 flex items-center justify-center w-10 h-10 hover:bg-[#e0e8f6] dark:hover:bg-[#333538] rounded-full transition-colors cursor-pointer"
           >
             <svg
               className="w-8 h-8"
@@ -126,7 +131,7 @@ export default function Header({
               <path d="M8 16H16V17.5H8V16Z" fill="white" />
               <path d="M8 10H13V11.5H8V10Z" fill="white" />
             </svg>
-          </a>
+          </button>
 
           <div>
             {/* Top Row: Inline Title + Star + Move + Sync Status */}
@@ -635,12 +640,22 @@ export default function Header({
           {/* Primary Blue 'Share' Button (Image 3) */}
           <button
             onClick={onOpenShareModal}
-            className="flex items-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white px-5 py-2 rounded-full font-medium text-sm shadow-sm transition-all hover:shadow hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white px-5 py-2 rounded-full font-medium text-sm shadow-sm transition-all hover:shadow hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             title="Share with people and groups"
           >
             <Lock className="w-4 h-4 stroke-[2.5]" />
             <span>Share</span>
           </button>
+
+          {/* User Account & Profile Menu (Google Style) */}
+          <UserProfileMenu
+            currentUser={currentUser}
+            currentRole={currentRole}
+            onUpdateProfile={onUpdateProfile}
+            onOpenAuthModal={onOpenAuthModal}
+            onOpenDashboard={onOpenDashboard}
+            onLogout={onLogout}
+          />
         </div>
       </div>
     </header>
