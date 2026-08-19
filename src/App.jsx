@@ -16,6 +16,8 @@ import AccessRequestToast from './components/AccessRequestToast.jsx';
 import { parseShareUrl, generateShareUrl } from './permissions/share.js';
 import { ROLES, normalizeRole } from './permissions/manager.js';
 import { FormatPainter } from './core/editor.js';
+import { DocumentExporter } from './export/exporter.js';
+import { WebrtcProvider } from 'y-webrtc';
 
 import { Eye, Wifi, Copy, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react';
 
@@ -171,11 +173,41 @@ export default function App() {
             addLog('ERROR', `Storage restore failed: ${e.message}`);
         }
 
-        // ── 4. Open BroadcastChannel ───────────────────────────────────────────
+        // ── 4. Open BroadcastChannel & WebRTC Signaling Mesh ─────────────────
         const channelName = `gdocs_crdt_channel_${initialDocId}`;
         const channel = new BroadcastChannel(channelName);
         channelRef.current = channel;
         addLog('CHANNEL_READY', `BroadcastChannel '${channelName}'`);
+
+        // Initialize WebRTC Provider for internet cross-device collaboration
+        let webrtcProvider = null;
+        try {
+            webrtcProvider = new WebrtcProvider(`gdocs_room_${initialDocId}`, ydoc, {
+                signaling: [
+                    'wss://signaling.yjs.dev',
+                    'wss://y-webrtc-signaling-eu.herokuapp.com',
+                    'wss://y-webrtc-signaling-us.herokuapp.com'
+                ]
+            });
+            webrtcProvider.awareness.setLocalStateField('user', userProfile);
+            addLog('WEBRTC_READY', `WebRTC signaling mesh active on 'gdocs_room_${initialDocId}'`);
+
+            webrtcProvider.awareness.on('change', () => {
+                const states = webrtcProvider.awareness.getStates();
+                states.forEach((state) => {
+                    if (state.user && state.user.id !== userProfile.id) {
+                        knownPeersRef.current.set(state.user.id, {
+                            ...state.user,
+                            isSelf: false,
+                            lastSeen: Date.now()
+                        });
+                    }
+                });
+                updateRoster();
+            });
+        } catch (e) {
+            console.warn('WebRTC mesh fallback:', e);
+        }
 
         // ── 5. Peer roster management ──────────────────────────────────────────
         knownPeersRef.current.set(userProfile.id, { ...userProfile, isSelf: true, lastSeen: Date.now() });
@@ -452,6 +484,7 @@ export default function App() {
         return () => {
             addLog('CLEANUP', 'Engine destroyed');
             clearInterval(heartbeatInterval);
+            if (webrtcProvider) webrtcProvider.destroy();
             channel.close();
             ydoc.destroy();
             // Null out refs so next mount starts fresh
@@ -540,6 +573,29 @@ export default function App() {
         navigator.clipboard.writeText(logs.map(l => `[${l.timestamp}] [${l.category}] ${l.message}`).join('\n'));
     }, [logs]);
 
+    const handleMenuAction = useCallback((action) => {
+        if (action === 'new') {
+            const newDocId = 'doc_' + Math.random().toString(36).substring(2, 9);
+            const currentUrl = new URL(window.location.href);
+            currentUrl.hash = `#doc=${newDocId}&role=owner&user=Alice`;
+            window.open(currentUrl.toString(), '_blank');
+        } else if (action === 'download_md') {
+            const exporter = new DocumentExporter({ title, content: quillRef.current?.root.innerHTML || '' });
+            exporter.download('md');
+        } else if (action === 'download_html') {
+            const exporter = new DocumentExporter({ title, content: quillRef.current?.root.innerHTML || '' });
+            exporter.download('html');
+        } else if (action === 'download_txt') {
+            const exporter = new DocumentExporter({ title, content: quillRef.current?.root.innerHTML || '' });
+            exporter.download('txt');
+        } else if (action === 'download_docx') {
+            const exporter = new DocumentExporter({ title, content: quillRef.current?.root.innerHTML || '' });
+            exporter.download('docx');
+        } else if (action === 'download_pdf') {
+            window.print();
+        }
+    }, [title]);
+
     const isReadOnly = currentRole === ROLES.VIEWER || currentRole === ROLES.COMMENTER;
 
     return (
@@ -559,6 +615,7 @@ export default function App() {
                 theme={theme}
                 onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
                 onOpenFindReplace={() => setShowFindReplace(true)}
+                onMenuAction={handleMenuAction}
             />
 
             {isReadOnly && (
