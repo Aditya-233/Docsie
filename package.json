@@ -1,0 +1,54 @@
+{
+  "name": "google-docs-clone",
+  "version": "2.0.0",
+  "description": "Production-grade, modular Google Docs clone with real-time multi-person collaboration, role permissions, and comprehensive test suite",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "signaling": "node scripts/signaling.js",
+    "build": "vite build",
+    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "simulate:collab": "node scripts/simulate_collab.js",
+    "serve": "node scripts/serve.js"
+  },
+  "keywords": [
+    "google-docs",
+    "real-time",
+    "collaboration",
+    "rich-text",
+    "wysiwyg",
+    "permissions"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "html-docx-js": "^0.3.1",
+    "html2pdf.js": "^0.14.0",
+    "lucide-react": "^1.33.0",
+    "quill": "^2.0.3",
+    "quill-cursors": "^5.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.6.0",
+    "ws": "^8.21.3",
+    "y-indexeddb": "^9.0.12",
+    "y-quill": "^1.0.0",
+    "y-webrtc": "^10.3.0",
+    "y-websocket": "^3.1.0",
+    "yjs": "^13.6.32"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.1"
+  }
+}
