@@ -29,14 +29,9 @@ export function extractPlainText(tiptapJson: any): string {
   return lines.join("").trim();
 }
 
+import { downloadBlob } from "../utils";
+
 export function downloadTxt(text: string, filename = "document.txt"): void {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(".txt") ? filename : `${filename}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename.endsWith(".txt") ? filename : `${filename}.txt`);
 }

@@ -197,15 +197,10 @@ export function exportMarkdown(tiptapJson: any): string {
     .trim();
 }
 
+import { downloadBlob } from "../utils";
+
 export function downloadMarkdown(tiptapJson: any, filename = "document.md"): void {
   const md = exportMarkdown(tiptapJson);
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(".md") ? filename : `${filename}.md`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename.endsWith(".md") ? filename : `${filename}.md`);
 }

@@ -32,11 +32,10 @@ export interface SupabaseYjsProviderOptions {
  * Helper: Convert Uint8Array to Postgres BYTEA hex format ('\x...')
  */
 export function uint8ArrayToHex(bytes: Uint8Array): string {
-  let hex = '\\x';
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0');
+  if (typeof Buffer !== "undefined") {
+    return "\\x" + Buffer.from(bytes).toString("hex");
   }
-  return hex;
+  return bytes.reduce((s, b) => s + b.toString(16).padStart(2, "0"), "\\x");
 }
 
 /**

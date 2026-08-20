@@ -1,6 +1,13 @@
-/**
- * HTML exporter for Google Docs clone
- */
+import { downloadBlob } from "../utils";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export function generateHtmlDocument(htmlBody: string, title = "Untitled Document"): string {
   return `<!DOCTYPE html>
@@ -8,7 +15,7 @@ export function generateHtmlDocument(htmlBody: string, title = "Untitled Documen
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -80,12 +87,5 @@ export function generateHtmlDocument(htmlBody: string, title = "Untitled Documen
 export function downloadHtml(htmlBody: string, filename = "document.html"): void {
   const doc = generateHtmlDocument(htmlBody, filename.replace(/\.html$/i, ""));
   const blob = new Blob([doc], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(".html") ? filename : `${filename}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename.endsWith(".html") ? filename : `${filename}.html`);
 }

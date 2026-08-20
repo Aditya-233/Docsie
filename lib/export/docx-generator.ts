@@ -351,14 +351,12 @@ export async function generateDocxBuffer(tiptapJson: any, title = "Untitled Docu
   return await Packer.toBuffer(doc);
 }
 
-export async function downloadDocx(tiptapJson: any, filename = "document.docx"): Promise<void> {
+import { downloadBlob } from "../utils";
+
+export async function downloadDocx(
+  tiptapJson: any,
+  filename = "document.docx"
+): Promise<void> {
   const blob = await generateDocxBlob(tiptapJson, filename.replace(/\.docx$/i, ""));
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(".docx") ? filename : `${filename}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename.endsWith(".docx") ? filename : `${filename}.docx`);
 }
