@@ -72,6 +72,7 @@ function EditorContent({ docId }: { docId: string }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [editorInstance, setEditorInstance] = useState<any>(null);
 
   // User identity
   const [currentUser, setCurrentUser] = useState<UserProfile>({
@@ -437,6 +438,7 @@ function EditorContent({ docId }: { docId: string }) {
             docId={docId}
             ydoc={ydoc}
             provider={provider}
+            onEditorReady={setEditorInstance}
             user={{
               name: currentUser.name || "Collaborator",
               color: currentUser.color || "#4285F4",
@@ -454,6 +456,7 @@ function EditorContent({ docId }: { docId: string }) {
             <OutlineSidebar
               isOpen={outlineOpen}
               onClose={() => setOutlineOpen(false)}
+              editor={editorInstance}
             />
           </aside>
         )}
@@ -483,8 +486,12 @@ function EditorContent({ docId }: { docId: string }) {
               ydoc={ydoc}
               isOpen={historyOpen}
               onClose={() => setHistoryOpen(false)}
-              onRestoreVersion={() => {
+              onRestoreVersion={async (snapshot) => {
+                if (snapshot?.content && editorInstance) {
+                  editorInstance.commands.setContent(snapshot.content);
+                }
                 setSyncStatus("saved");
+                await provider.saveSnapshot().catch(() => {});
               }}
             />
           </aside>

@@ -40,3 +40,15 @@ tsconfig.tsbuildinfo
 .env*.local
 .env.production
 .env.development
+
+# External reference repos
+/docx
+/lib0
+/react
+/supabase-js
+/supabase-ssr
+/tailwindcss
+/tiptap
+/y-protocols
+/yjs
+

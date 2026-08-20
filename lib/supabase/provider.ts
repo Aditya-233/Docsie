@@ -122,6 +122,7 @@ export class SupabaseYjsProvider extends Observable<string> {
   private channel: RealtimeChannel | null = null;
   private broadcastChannel: BroadcastChannel | null = null;
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  private awarenessHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
   public saveInterval: number;
   public userConfig: Record<string, any> | null = null;
   private isDirty: boolean = false;
@@ -287,6 +288,15 @@ export class SupabaseYjsProvider extends Observable<string> {
     // Send initial sync step 1 over BroadcastChannel as well
     this.sendSyncStep1();
     this.broadcastAwarenessState();
+
+    // Start 15s awareness heartbeat to keep remote cursors active during idle periods
+    if (!this.awarenessHeartbeatInterval && typeof window !== 'undefined') {
+      this.awarenessHeartbeatInterval = setInterval(() => {
+        if (this.connected) {
+          this.broadcastAwarenessState();
+        }
+      }, 15000);
+    }
   }
 
   /**
@@ -505,6 +515,11 @@ export class SupabaseYjsProvider extends Observable<string> {
     if (this.broadcastChannel) {
       this.broadcastChannel.close();
       this.broadcastChannel = null;
+    }
+
+    if (this.awarenessHeartbeatInterval) {
+      clearInterval(this.awarenessHeartbeatInterval);
+      this.awarenessHeartbeatInterval = null;
     }
 
     this.connected = false;

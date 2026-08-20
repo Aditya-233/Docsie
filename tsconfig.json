@@ -46,9 +46,6 @@
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "*": [
-        "./*"
       ]
     },
     "plugins": [
@@ -67,6 +64,15 @@
   "exclude": [
     "node_modules",
     ".next",
-    "dist"
+    "dist",
+    "docx",
+    "lib0",
+    "react",
+    "supabase-js",
+    "supabase-ssr",
+    "tailwindcss",
+    "tiptap",
+    "y-protocols",
+    "yjs"
   ]
 }
