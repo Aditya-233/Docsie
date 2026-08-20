@@ -156,10 +156,24 @@ export default function DashboardLayout({
 
     const checkAuth = async () => {
       try {
-        const { data: { user: authUser }, error } = await supabase.auth.getUser();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        let authUser = session?.user;
+        if (!authUser) {
+          const {
+            data: { user: fetchedUser },
+            error,
+          } = await supabase.auth.getUser();
+          if (!error && fetchedUser) {
+            authUser = fetchedUser;
+          }
+        }
+
         if (!isMounted) return;
 
-        if (error || !authUser) {
+        if (!authUser) {
           redirectToLogin();
           return;
         }
@@ -174,10 +188,12 @@ export default function DashboardLayout({
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
         redirectToLogin();
-      } else if (session.user) {
+      } else if (session?.user && isMounted) {
         setUser(extractProfile(session.user));
         setLoading(false);
       }

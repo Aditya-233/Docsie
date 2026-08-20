@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import * as Y from "yjs";
 import {
@@ -24,6 +24,7 @@ import { VersionHistoryDrawer } from "@/components/document/version-history-draw
 import { SupabaseYjsProvider } from "@/lib/supabase/provider";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeRole } from "@/lib/permissions";
+import { getBasePath } from "@/lib/utils";
 import type { UserRole, UserProfile } from "@/types";
 
 interface DocumentEditorClientProps {
@@ -57,7 +58,6 @@ function getCollaboratorColor(identifier: string): string {
 }
 
 function EditorContent({ docId }: { docId: string }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Document metadata state
@@ -123,12 +123,23 @@ function EditorContent({ docId }: { docId: string }) {
     async function loadAuthUser() {
       try {
         const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        if (error || !user) {
-          router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+        let user = session?.user;
+        if (!user) {
+          const {
+            data: { user: fetchedUser },
+            error,
+          } = await supabase.auth.getUser();
+          if (!error && fetchedUser) {
+            user = fetchedUser;
+          }
+        }
+
+        if (!user) {
+          const basePath = getBasePath();
+          window.location.replace(`${basePath}/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
           return;
         }
 
@@ -155,7 +166,8 @@ function EditorContent({ docId }: { docId: string }) {
         }
       } catch (err) {
         console.error("Auth verification failed:", err);
-        router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+        const basePath = getBasePath();
+        window.location.replace(`${basePath}/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
       }
     }
 
@@ -163,10 +175,11 @@ function EditorContent({ docId }: { docId: string }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
-        router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
-      } else if (isMounted) {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        const basePath = getBasePath();
+        window.location.replace(`${basePath}/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+      } else if (session?.user && isMounted) {
         const u = session.user;
         const userMeta = u.user_metadata || {};
         const name =
@@ -194,7 +207,7 @@ function EditorContent({ docId }: { docId: string }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, docId, router]);
+  }, [docId, supabase]);
 
   // Read URL params for role/user overrides
   useEffect(() => {

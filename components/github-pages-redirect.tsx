@@ -32,12 +32,29 @@ export function GitHubPagesRedirect() {
     const target = extractSpaRedirectTarget(redirectParam);
     if (!target) return;
 
+    let routeTarget = target;
+    const docMatch = target.match(/^\/doc\/([a-zA-Z0-9_-]+)/);
+    const preRendered = [
+      "demo",
+      "new",
+      "getting-started",
+      "q3-planning-doc",
+      "design-system-spec",
+      "blank",
+      "proposal",
+      "resume",
+      "notes",
+    ];
+    if (docMatch && !preRendered.includes(docMatch[1])) {
+      routeTarget = `/doc?id=${encodeURIComponent(docMatch[1])}`;
+    }
+
     if (typeof window !== "undefined") {
       const historyPath = resolveHistoryPath(target, window.location.pathname);
       window.history.replaceState(null, "", historyPath);
     }
 
-    router.replace(target);
+    router.replace(routeTarget);
   }, [router, searchParams]);
 
   return null;

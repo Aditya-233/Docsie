@@ -64,47 +64,66 @@ function DashboardContent() {
     const supabase = createClient();
     let isMounted = true;
 
-    supabase.auth.getUser().then(({ data: { user: authUser }, error }) => {
-      if (!isMounted) return;
+    async function loadDashboardUser() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (error || !authUser) {
+        let authUser = session?.user;
+        if (!authUser) {
+          const {
+            data: { user: fetchedUser },
+            error,
+          } = await supabase.auth.getUser();
+          if (!error && fetchedUser) {
+            authUser = fetchedUser;
+          }
+        }
+
+        if (!isMounted) return;
+
+        if (!authUser) {
+          const basePath = getBasePath();
+          const currentPath = typeof window !== "undefined"
+            ? window.location.pathname + window.location.search
+            : "/";
+          const cleanNext = basePath && currentPath.startsWith(basePath)
+            ? currentPath.slice(basePath.length) || "/"
+            : currentPath;
+          window.location.replace(`${basePath}/login?next=${encodeURIComponent(cleanNext)}`);
+          return;
+        }
+
+        const email = authUser.email || "user@example.com";
+        const name =
+          authUser.user_metadata?.full_name ||
+          authUser.user_metadata?.name ||
+          authUser.user_metadata?.user_name ||
+          email.split("@")[0] ||
+          "User";
+        const avatarUrl =
+          authUser.user_metadata?.avatar_url ||
+          authUser.user_metadata?.picture ||
+          "";
+
+        setCurrentUser({
+          id: authUser.id,
+          name,
+          email,
+          avatarUrl,
+        });
+
+        setDocuments(getLocalDocuments());
+        setIsLoaded(true);
+      } catch {
+        if (!isMounted) return;
         const basePath = getBasePath();
-        const currentPath = typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "/";
-        const cleanNext = basePath && currentPath.startsWith(basePath)
-          ? currentPath.slice(basePath.length) || "/"
-          : currentPath;
-        window.location.replace(`${basePath}/login?next=${encodeURIComponent(cleanNext)}`);
-        return;
+        window.location.replace(`${basePath}/login`);
       }
+    }
 
-      const email = authUser.email || "user@example.com";
-      const name =
-        authUser.user_metadata?.full_name ||
-        authUser.user_metadata?.name ||
-        authUser.user_metadata?.user_name ||
-        email.split("@")[0] ||
-        "User";
-      const avatarUrl =
-        authUser.user_metadata?.avatar_url ||
-        authUser.user_metadata?.picture ||
-        "";
-
-      setCurrentUser({
-        id: authUser.id,
-        name,
-        email,
-        avatarUrl,
-      });
-
-      setDocuments(getLocalDocuments());
-      setIsLoaded(true);
-    }).catch(() => {
-      if (!isMounted) return;
-      const basePath = getBasePath();
-      window.location.replace(`${basePath}/login`);
-    });
+    loadDashboardUser();
 
     return () => {
       isMounted = false;
@@ -119,6 +138,21 @@ function DashboardContent() {
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
+
+  const getDocHref = (id: string) => {
+    const preRendered = [
+      "demo",
+      "new",
+      "getting-started",
+      "q3-planning-doc",
+      "design-system-spec",
+      "blank",
+      "proposal",
+      "resume",
+      "notes",
+    ];
+    return preRendered.includes(id) ? `/doc/${id}` : `/doc?id=${encodeURIComponent(id)}`;
+  };
 
   const handleCreateDocument = (templateId?: string) => {
     const newId = `doc-${generateId()}`;
@@ -152,7 +186,7 @@ function DashboardContent() {
 
     saveLocalDocument(newDoc);
     startTransition(() => {
-      router.push(`/doc/${newId}`);
+      router.push(getDocHref(newId));
     });
   };
 
@@ -487,7 +521,7 @@ function DashboardContent() {
             {filteredDocuments.map((doc) => (
               <div
                 key={doc.id}
-                onClick={() => router.push(`/doc/${doc.id}`)}
+                onClick={() => router.push(getDocHref(doc.id))}
                 className="bg-white border border-[#dadce0] hover:border-[#1a73e8] rounded-md overflow-hidden cursor-pointer shadow-xs hover:shadow-md transition-all flex flex-col group"
               >
                 {/* Document Thumbnail Preview */}
@@ -563,7 +597,7 @@ function DashboardContent() {
                               <Trash2 className="w-3.5 h-3.5 text-red-500" /> Remove
                             </button>
                             <a
-                              href={`/doc/${doc.id}`}
+                              href={getDocHref(doc.id)}
                               target="_blank"
                               rel="noreferrer"
                               className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
@@ -597,7 +631,7 @@ function DashboardContent() {
                 {filteredDocuments.map((doc) => (
                   <tr
                     key={doc.id}
-                    onClick={() => router.push(`/doc/${doc.id}`)}
+                    onClick={() => router.push(getDocHref(doc.id))}
                     className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
                   >
                     <td className="py-3 px-4 flex items-center space-x-3">
