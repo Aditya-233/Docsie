@@ -223,31 +223,35 @@ export function ShareModal({
     broadcastPermissions(generalAccess, role, collaborators);
   };
 
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
   const getShareableLink = () => {
-    if (typeof window !== "undefined") {
-      const origin = window.location.origin;
-      const isGhPages =
-        process.env.NEXT_PUBLIC_BASE_PATH === "/Docsie" ||
-        process.env.GITHUB_PAGES === "true" ||
-        window.location.pathname.startsWith("/Docsie");
-      const basePath = isGhPages ? "/Docsie" : "";
-      return `${origin}${basePath}/doc/${docId}`;
-    }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     const isGhPages =
       process.env.NEXT_PUBLIC_BASE_PATH === "/Docsie" ||
-      process.env.GITHUB_PAGES === "true";
+      process.env.GITHUB_PAGES === "true" ||
+      (typeof window !== "undefined" && window.location.pathname.startsWith("/Docsie"));
     const basePath = isGhPages ? "/Docsie" : "";
-    return `${basePath}/doc/${docId}`;
+    const base = `${origin}${basePath}/doc/${docId}`;
+    if (generalAccess === "anyone_with_link") {
+      return `${base}?role=${generalRole}`;
+    }
+    return base;
   };
 
   const handleCopyLink = async () => {
     try {
+      setIsGeneratingLink(true);
+      // Brief async pause so the UI shows "Generating link..." like Google Docs
+      await new Promise((r) => setTimeout(r, 600));
       const link = getShareableLink();
       await navigator.clipboard.writeText(link);
+      setIsGeneratingLink(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
       console.error("Failed to copy link:", err);
+      setIsGeneratingLink(false);
     }
   };
 
@@ -485,9 +489,15 @@ export function ShareModal({
           <button
             type="button"
             onClick={handleCopyLink}
-            className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-300 rounded-full text-xs font-medium text-blue-600 hover:text-blue-700 bg-white hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
+            disabled={isGeneratingLink}
+            className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-300 rounded-full text-xs font-medium text-blue-600 hover:text-blue-700 bg-white hover:bg-gray-50 disabled:opacity-60 transition-colors shadow-2xs cursor-pointer"
           >
-            {copied ? (
+            {isGeneratingLink ? (
+              <>
+                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-gray-500">Generating link...</span>
+              </>
+            ) : copied ? (
               <>
                 <Check className="w-4 h-4 text-emerald-600" />
                 <span className="text-emerald-600 font-semibold">Link copied</span>

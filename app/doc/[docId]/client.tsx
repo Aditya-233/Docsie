@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Editor } from "@/components/editor/editor";
+import { DocMenuBar } from "@/components/editor/doc-menu-bar";
 import { ShareModal } from "@/components/document/share-modal";
 import { OutlineSidebar } from "@/components/document/outline-sidebar";
 import { CommentsSidebar } from "@/components/comments/comments-sidebar";
@@ -25,6 +26,7 @@ import { SupabaseYjsProvider } from "@/lib/supabase/provider";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeRole } from "@/lib/permissions";
 import { getBasePath } from "@/lib/utils";
+import { getLocalDocument, saveLocalDocument } from "@/lib/storage";
 import type { UserRole, UserProfile } from "@/types";
 
 interface DocumentEditorClientProps {
@@ -63,14 +65,18 @@ function EditorContent({ docId }: { docId: string }) {
   // Document metadata state
   const [title, setTitle] = useState<string>("Untitled Document");
   const [isStarred, setIsStarred] = useState<boolean>(false);
-  const [syncStatus, setSyncStatus] = useState<"saved" | "syncing" | "offline">("saved");
+  // Start syncing, flip to saved/offline when provider reports its status
+  const [syncStatus, setSyncStatus] = useState<"saved" | "syncing" | "offline">("syncing");
   const [role, setRole] = useState<UserRole>("owner");
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-  // Sidebar / Modal toggle states
-  const [outlineOpen, setOutlineOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  // Sidebar / Modal toggle states — only ONE sidebar open at a time
+  type SidebarId = "outline" | "comments" | "history" | null;
+  const [activeSidebar, setActiveSidebar] = useState<SidebarId>(null);
+  const toggleSidebar = (which: Exclude<SidebarId, null>) => {
+    setActiveSidebar((prev) => (prev === which ? null : which));
+  };
+
   const [shareOpen, setShareOpen] = useState(false);
   const [editorInstance, setEditorInstance] = useState<any>(null);
 
@@ -129,6 +135,53 @@ function EditorContent({ docId }: { docId: string }) {
   const [collaboratorPresence, setCollaboratorPresence] = useState<
     Array<{ id?: string; name?: string; color?: string; avatar_url?: string; email?: string }>
   >([]);
+
+  // ── Title persistence: load from localStorage on mount ──────────────────
+  useEffect(() => {
+    const doc = getLocalDocument(docId);
+    if (doc?.title && doc.title !== "Untitled Document") {
+      setTitle(doc.title);
+    }
+  }, [docId]);
+
+  // Save title to localStorage whenever it changes (debounced 600ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveLocalDocument({
+        id: docId,
+        title,
+        owner: "me",
+        updatedAt: Date.now(),
+        createdAt: Date.now(),
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [docId, title]);
+
+  // ── Ctrl+S → save (prevent browser Save-As dialog) ──────────────────────
+  const handleSave = () => {
+    saveLocalDocument({
+      id: docId,
+      title,
+      owner: "me",
+      updatedAt: Date.now(),
+      createdAt: Date.now(),
+    });
+    setSyncStatus("saved");
+    // Persist snapshot to Supabase
+    provider?.saveSnapshot().catch(() => {});
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [title, provider]);
 
   // Authenticate user & load real Google OAuth profile
   useEffect(() => {
@@ -351,16 +404,14 @@ function EditorContent({ docId }: { docId: string }) {
             </div>
 
             {/* Menubar Subtitle */}
-            <div className="flex items-center gap-3 text-xs text-neutral-500 pl-1.5">
-              <span className="cursor-pointer hover:text-neutral-800">File</span>
-              <span className="cursor-pointer hover:text-neutral-800">Edit</span>
-              <span className="cursor-pointer hover:text-neutral-800">View</span>
-              <span className="cursor-pointer hover:text-neutral-800">Insert</span>
-              <span className="cursor-pointer hover:text-neutral-800">Format</span>
-              <span className="cursor-pointer hover:text-neutral-800">Tools</span>
-              <span className="cursor-pointer hover:text-neutral-800">Help</span>
+            <div className="flex items-center gap-2 pl-1.5">
+              <DocMenuBar
+                onSave={handleSave}
+                onToggleSidebar={toggleSidebar}
+                editorInstance={editorInstance}
+              />
 
-              <div className="flex items-center gap-1 pl-2 text-neutral-400">
+              <div className="flex items-center gap-1 pl-2 text-xs text-neutral-400">
                 {syncStatus === "saved" ? (
                   <>
                     <Cloud className="w-3.5 h-3.5 text-neutral-500" />
@@ -426,9 +477,9 @@ function EditorContent({ docId }: { docId: string }) {
 
           {/* Outline Sidebar Toggle */}
           <button
-            onClick={() => setOutlineOpen(!outlineOpen)}
+            onClick={() => toggleSidebar("outline")}
             className={`p-2 rounded-lg transition-colors ${
-              outlineOpen ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
+              activeSidebar === "outline" ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
             }`}
             title="Document Outline & Stats"
           >
@@ -437,9 +488,9 @@ function EditorContent({ docId }: { docId: string }) {
 
           {/* Comments Sidebar Toggle */}
           <button
-            onClick={() => setCommentsOpen(!commentsOpen)}
+            onClick={() => toggleSidebar("comments")}
             className={`p-2 rounded-lg transition-colors ${
-              commentsOpen ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
+              activeSidebar === "comments" ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
             }`}
             title="Comment History"
           >
@@ -448,9 +499,9 @@ function EditorContent({ docId }: { docId: string }) {
 
           {/* Version History Toggle */}
           <button
-            onClick={() => setHistoryOpen(!historyOpen)}
+            onClick={() => toggleSidebar("history")}
             className={`p-2 rounded-lg transition-colors ${
-              historyOpen ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
+              activeSidebar === "history" ? "bg-blue-50 text-blue-600" : "text-neutral-600 hover:bg-neutral-100"
             }`}
             title="Version History"
           >
@@ -487,24 +538,24 @@ function EditorContent({ docId }: { docId: string }) {
           />
         </main>
 
-        {/* 3. Sliding Sidebars */}
-        {outlineOpen && (
+        {/* 3. Sliding Sidebars — only one open at a time */}
+        {activeSidebar === "outline" && (
           <aside className="w-72 bg-white border-l border-neutral-200 overflow-y-auto z-10">
             <OutlineSidebar
-              isOpen={outlineOpen}
-              onClose={() => setOutlineOpen(false)}
+              isOpen={true}
+              onClose={() => setActiveSidebar(null)}
               editor={editorInstance}
             />
           </aside>
         )}
 
-        {commentsOpen && (
+        {activeSidebar === "comments" && (
           <aside className="w-80 bg-white border-l border-neutral-200 overflow-y-auto z-10">
             <CommentsSidebar
               docId={docId}
               ydoc={ydoc}
-              isOpen={commentsOpen}
-              onClose={() => setCommentsOpen(false)}
+              isOpen={true}
+              onClose={() => setActiveSidebar(null)}
               currentUser={{
                 id: currentUser.id,
                 name: currentUser.name || "Collaborator",
@@ -516,13 +567,13 @@ function EditorContent({ docId }: { docId: string }) {
           </aside>
         )}
 
-        {historyOpen && (
+        {activeSidebar === "history" && (
           <aside className="w-80 bg-white border-l border-neutral-200 overflow-y-auto z-10">
             <VersionHistoryDrawer
               docId={docId}
               ydoc={ydoc}
-              isOpen={historyOpen}
-              onClose={() => setHistoryOpen(false)}
+              isOpen={true}
+              onClose={() => setActiveSidebar(null)}
               onRestoreVersion={async (snapshot) => {
                 if (snapshot?.content && editorInstance) {
                   editorInstance.commands.setContent(snapshot.content);
