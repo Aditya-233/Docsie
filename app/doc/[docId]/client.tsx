@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import * as Y from "yjs";
 import {
@@ -30,7 +30,34 @@ interface DocumentEditorClientProps {
   docId: string;
 }
 
+// Google Docs collaborator color palette
+const GOOGLE_DOCS_COLORS = [
+  "#EA4335", // Red
+  "#4285F4", // Blue
+  "#34A853", // Green
+  "#FBBC04", // Yellow
+  "#FA7B17", // Orange
+  "#46BDC6", // Teal
+  "#AF5CF7", // Purple
+  "#FF63B8", // Pink
+  "#129EAF", // Cyan
+  "#188038", // Forest
+  "#B31412", // Dark Red
+  "#1A73E8", // Royal Blue
+];
+
+function getCollaboratorColor(identifier: string): string {
+  let hash = 0;
+  for (let i = 0; i < identifier.length; i++) {
+    hash = (hash << 5) - hash + identifier.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % GOOGLE_DOCS_COLORS.length;
+  return GOOGLE_DOCS_COLORS[index];
+}
+
 function EditorContent({ docId }: { docId: string }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Document metadata state
@@ -38,6 +65,7 @@ function EditorContent({ docId }: { docId: string }) {
   const [isStarred, setIsStarred] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "syncing" | "offline">("saved");
   const [role, setRole] = useState<UserRole>("owner");
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   // Sidebar / Modal toggle states
   const [outlineOpen, setOutlineOpen] = useState(false);
@@ -47,27 +75,125 @@ function EditorContent({ docId }: { docId: string }) {
 
   // User identity
   const [currentUser, setCurrentUser] = useState<UserProfile>({
-    id: "guest-user",
+    id: "loading-user",
     name: "Collaborator",
-    email: "guest@example.com",
+    email: "",
     role: "owner",
     color: "#4285F4",
     avatar_url: undefined,
   });
 
+  // Supabase client instance
+  const supabase = useMemo(() => createClient(), []);
+
   // Supabase & Yjs CRDT instance
   const ydoc = useMemo(() => new Y.Doc(), [docId]);
-  const supabase = useMemo(() => createClient(), []);
   const provider = useMemo(() => {
     return new SupabaseYjsProvider(docId, ydoc, {
       supabase,
       user: {
         id: currentUser.id,
         name: currentUser.name,
+        email: currentUser.email,
         color: currentUser.color,
+        avatar_url: currentUser.avatar_url,
       },
     });
-  }, [docId, ydoc, supabase, currentUser.id, currentUser.name, currentUser.color]);
+  }, [
+    docId,
+    ydoc,
+    supabase,
+    currentUser.id,
+    currentUser.name,
+    currentUser.email,
+    currentUser.color,
+    currentUser.avatar_url,
+  ]);
+
+  // Active collaborator presence list from Yjs Awareness
+  const [collaboratorPresence, setCollaboratorPresence] = useState<
+    Array<{ id?: string; name?: string; color?: string; avatar_url?: string; email?: string }>
+  >([]);
+
+  // Authenticate user & load real Google OAuth profile
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAuthUser() {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error || !user) {
+          router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+          return;
+        }
+
+        if (isMounted && user) {
+          const userMeta = user.user_metadata || {};
+          const name =
+            userMeta.full_name ||
+            userMeta.name ||
+            user.email?.split("@")[0] ||
+            "Collaborator";
+          const email = user.email || "";
+          const avatarUrl = userMeta.avatar_url || userMeta.picture || undefined;
+          const color = getCollaboratorColor(user.id || email);
+
+          setCurrentUser((prev) => ({
+            ...prev,
+            id: user.id,
+            name,
+            email,
+            avatar_url: avatarUrl,
+            color,
+          }));
+          setAuthLoading(false);
+        }
+      } catch (err) {
+        console.error("Auth verification failed:", err);
+        router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+      }
+    }
+
+    loadAuthUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        router.push(`/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+      } else if (isMounted) {
+        const u = session.user;
+        const userMeta = u.user_metadata || {};
+        const name =
+          userMeta.full_name ||
+          userMeta.name ||
+          u.email?.split("@")[0] ||
+          "Collaborator";
+        const email = u.email || "";
+        const avatarUrl = userMeta.avatar_url || userMeta.picture || undefined;
+        const color = getCollaboratorColor(u.id || email);
+
+        setCurrentUser((prev) => ({
+          ...prev,
+          id: u.id,
+          name,
+          email,
+          avatar_url: avatarUrl,
+          color,
+        }));
+        setAuthLoading(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase, docId, router]);
 
   // Read URL params for role/user overrides
   useEffect(() => {
@@ -102,6 +228,54 @@ function EditorContent({ docId }: { docId: string }) {
       provider.off("status", handleStatus);
     };
   }, [provider]);
+
+  // Track awareness changes for live collaborator roster in header
+  useEffect(() => {
+    if (!provider || !provider.awareness) return;
+
+    const handleAwarenessChange = () => {
+      const states = provider.awareness.getStates();
+      const peers: Array<{
+        id?: string;
+        name?: string;
+        color?: string;
+        avatar_url?: string;
+        email?: string;
+      }> = [];
+
+      states.forEach((state: any, clientID: number) => {
+        if (state.user && state.user.name) {
+          peers.push({
+            id: state.user.id || String(clientID),
+            name: state.user.name,
+            color: state.user.color || "#4285F4",
+            avatar_url: state.user.avatar_url,
+            email: state.user.email,
+          });
+        }
+      });
+
+      const uniquePeers = Array.from(
+        new Map(peers.map((p) => [p.id || p.name, p])).values()
+      );
+      setCollaboratorPresence(uniquePeers);
+    };
+
+    handleAwarenessChange();
+    provider.awareness.on("change", handleAwarenessChange);
+    return () => {
+      provider.awareness.off("change", handleAwarenessChange);
+    };
+  }, [provider]);
+
+  if (authLoading) {
+    return (
+      <div className="h-screen w-screen bg-[#f8f9fa] flex flex-col items-center justify-center gap-3 text-neutral-600">
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium">Verifying Google authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#f8f9fa] overflow-hidden select-none">
@@ -172,6 +346,38 @@ function EditorContent({ docId }: { docId: string }) {
 
         {/* Action Controls & Collaborator Presence */}
         <div className="flex items-center gap-2">
+          {/* Active Collaborator Presence Avatars */}
+          {collaboratorPresence.length > 0 && (
+            <div className="flex items-center -space-x-1.5 mr-2">
+              {collaboratorPresence.map((collab, i) => (
+                <div
+                  key={collab.id || i}
+                  className="relative group cursor-pointer"
+                  title={collab.name}
+                >
+                  <div
+                    className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[11px] font-semibold uppercase shadow-xs overflow-hidden"
+                    style={{ backgroundColor: collab.color || "#4285F4" }}
+                  >
+                    {collab.avatar_url ? (
+                      <img
+                        src={collab.avatar_url}
+                        alt={collab.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      (collab.name || "C").charAt(0)
+                    )}
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute top-full right-1/2 translate-x-1/2 mt-1 hidden group-hover:block bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded shadow whitespace-nowrap z-30 pointer-events-none">
+                    {collab.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Viewer notice badge */}
           {role === "viewer" && (
             <div className="flex items-center gap-1.5 bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full text-xs font-medium border border-neutral-200">
@@ -216,7 +422,7 @@ function EditorContent({ docId }: { docId: string }) {
           {/* Share Button (Google Docs Blue) */}
           <button
             onClick={() => setShareOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full text-sm shadow-sm transition-colors ml-2"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full text-sm shadow-sm transition-colors ml-2 cursor-pointer"
           >
             <Share2 className="w-4 h-4" />
             <span>Share</span>
@@ -234,6 +440,7 @@ function EditorContent({ docId }: { docId: string }) {
             user={{
               name: currentUser.name || "Collaborator",
               color: currentUser.color || "#4285F4",
+              avatar: currentUser.avatar_url,
             }}
             role={role === "commenter" ? "viewer" : role}
             showToolbar={true}
@@ -262,6 +469,7 @@ function EditorContent({ docId }: { docId: string }) {
                 id: currentUser.id,
                 name: currentUser.name || "Collaborator",
                 email: currentUser.email,
+                avatar: currentUser.avatar_url,
                 color: currentUser.color,
               }}
             />
@@ -290,6 +498,13 @@ function EditorContent({ docId }: { docId: string }) {
         docId={docId}
         documentTitle={title}
         currentRole={role}
+        currentUser={{
+          id: currentUser.id,
+          name: currentUser.name || "Collaborator",
+          email: currentUser.email || "",
+          role: role,
+        }}
+        ydoc={ydoc}
       />
     </div>
   );

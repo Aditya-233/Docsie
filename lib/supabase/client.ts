@@ -137,17 +137,80 @@ function createMockBrowserClient(): SupabaseClient {
     user: mockAuthUser,
   };
 
+  const getAuthUser = () => {
+    const raw = getStorageItem('auth_user');
+    if (raw === null) {
+      return mockAuthUser;
+    }
+    try {
+      return raw === 'null' || raw === 'undefined' ? null : JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  const getAuthSession = () => {
+    const user = getAuthUser();
+    if (!user) return null;
+    return { ...mockAuthSession, user };
+  };
+
+  const authListeners: Array<(event: string, session: any) => void> = [];
+
   const mockClient: any = {
     auth: {
-      getUser: async () => ({ data: { user: mockAuthUser }, error: null }),
-      getSession: async () => ({ data: { session: mockAuthSession }, error: null }),
-      signInWithPassword: async () => ({ data: { user: mockAuthUser, session: mockAuthSession }, error: null }),
-      signInWithOAuth: async () => ({ data: { provider: 'google', url: '' }, error: null }),
-      signUp: async () => ({ data: { user: mockAuthUser, session: mockAuthSession }, error: null }),
-      signOut: async () => ({ error: null }),
+      getUser: async () => ({ data: { user: getAuthUser() }, error: null }),
+      getSession: async () => ({ data: { session: getAuthSession() }, error: null }),
+      signInWithPassword: async () => {
+        setStorageItem('auth_user', mockAuthUser);
+        const session = getAuthSession();
+        authListeners.forEach((cb) => cb('SIGNED_IN', session));
+        return { data: { user: mockAuthUser, session }, error: null };
+      },
+      signInWithOAuth: async (opts?: any) => {
+        setStorageItem('auth_user', mockAuthUser);
+        const redirectTo = opts?.options?.redirectTo;
+        if (typeof window !== 'undefined' && redirectTo) {
+          setTimeout(() => {
+            window.location.href = redirectTo;
+          }, 100);
+        }
+        return { data: { provider: opts?.provider || 'google', url: redirectTo || '' }, error: null };
+      },
+      exchangeCodeForSession: async () => {
+        setStorageItem('auth_user', mockAuthUser);
+        const session = getAuthSession();
+        authListeners.forEach((cb) => cb('SIGNED_IN', session));
+        return { data: { user: mockAuthUser, session }, error: null };
+      },
+      signInWithOtp: async () => ({ data: {}, error: null }),
+      signUp: async () => {
+        setStorageItem('auth_user', mockAuthUser);
+        const session = getAuthSession();
+        authListeners.forEach((cb) => cb('SIGNED_IN', session));
+        return { data: { user: mockAuthUser, session }, error: null };
+      },
+      signOut: async () => {
+        setStorageItem('auth_user', null);
+        authListeners.forEach((cb) => cb('SIGNED_OUT', null));
+        return { error: null };
+      },
       onAuthStateChange: (callback: (event: string, session: any) => void) => {
-        callback('SIGNED_IN', mockAuthSession);
-        return { data: { subscription: { unsubscribe: () => {} } } };
+        authListeners.push(callback);
+        const session = getAuthSession();
+        if (session) {
+          callback('SIGNED_IN', session);
+        }
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {
+                const idx = authListeners.indexOf(callback);
+                if (idx >= 0) authListeners.splice(idx, 1);
+              },
+            },
+          },
+        };
       },
     },
     from: (table: string) => {

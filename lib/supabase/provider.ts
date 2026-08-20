@@ -169,6 +169,14 @@ export class SupabaseYjsProvider extends Observable<string> {
   }
 
   /**
+   * Update the local user info and notify awareness listeners.
+   */
+  public setUser(user: Record<string, any>): void {
+    this.userConfig = user;
+    this.awareness.setLocalStateField('user', user);
+  }
+
+  /**
    * Cold-start hydration from Postgres yjs_documents table or local storage.
    */
   public async hydrate(): Promise<void> {

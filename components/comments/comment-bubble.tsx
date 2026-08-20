@@ -267,10 +267,18 @@ export function CommentBubble({
           {comment.replies.map((reply) => (
             <div key={reply.id} className="flex items-start gap-2 text-xs group/reply">
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium shrink-0 mt-0.5"
+                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium shrink-0 mt-0.5 overflow-hidden"
                 style={{ backgroundColor: reply.author.color || "#4285F4" }}
               >
-                {reply.author.name.charAt(0)}
+                {reply.author.avatar ? (
+                  <img
+                    src={reply.author.avatar}
+                    alt={reply.author.name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  reply.author.name.charAt(0)
+                )}
               </div>
               <div className="flex-1 bg-gray-50/70 p-2 rounded-lg border border-gray-100">
                 <div className="flex items-center justify-between gap-1">

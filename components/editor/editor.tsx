@@ -196,6 +196,21 @@ export function Editor({
             user: {
               name: user.name || "Anonymous",
               color: user.color || "#1a73e8",
+              avatar: user.avatar,
+            },
+            render(user: Record<string, any>) {
+              const cursor = document.createElement("span");
+              cursor.classList.add("collaboration-cursor__caret");
+              const userColor = user.color || "#1a73e8";
+              cursor.setAttribute("style", `border-color: ${userColor}; color: ${userColor}`);
+
+              const label = document.createElement("div");
+              label.classList.add("collaboration-cursor__label");
+              label.setAttribute("style", `background-color: ${userColor}`);
+              label.insertBefore(document.createTextNode(user.name || "Collaborator"), null);
+              cursor.insertBefore(label, null);
+
+              return cursor;
             },
           })
         );
@@ -203,7 +218,7 @@ export function Editor({
     }
 
     return list;
-  }, [ydoc, provider, user.name, user.color]);
+  }, [ydoc, provider, user.name, user.color, user.avatar]);
 
   // Mount Tiptap Editor
   const editor = useEditor({
@@ -243,7 +258,21 @@ export function Editor({
         cursorExtension.options.user = {
           name: user.name,
           color: user.color,
+          avatar: user.avatar,
         };
+      }
+      if (typeof provider.setUser === "function") {
+        provider.setUser({
+          name: user.name,
+          color: user.color,
+          avatar: user.avatar,
+        });
+      } else if (provider.awareness) {
+        provider.awareness.setLocalStateField("user", {
+          name: user.name,
+          color: user.color,
+          avatar: user.avatar,
+        });
       }
     }
   }, [editor, provider, user]);

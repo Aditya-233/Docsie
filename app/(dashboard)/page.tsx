@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { getBasePath } from "@/lib/utils";
 import {
   Plus,
   MoreVertical,
@@ -16,6 +18,7 @@ import {
   ArrowUpDown,
   Folder,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import {
   DocumentItem,
@@ -28,11 +31,19 @@ import {
 } from "@/lib/storage";
 import { generateId, formatDate } from "@/lib/utils";
 
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -48,10 +59,56 @@ function DashboardContent() {
 
   const query = searchParams?.get("q")?.toLowerCase() || "";
 
+  // Auth verification & document loading
   useEffect(() => {
-    const docs = getLocalDocuments();
-    setDocuments(docs);
-    setIsLoaded(true);
+    const supabase = createClient();
+    let isMounted = true;
+
+    supabase.auth.getUser().then(({ data: { user: authUser }, error }) => {
+      if (!isMounted) return;
+
+      if (error || !authUser) {
+        const basePath = getBasePath();
+        const currentPath = typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/";
+        const cleanNext = basePath && currentPath.startsWith(basePath)
+          ? currentPath.slice(basePath.length) || "/"
+          : currentPath;
+        window.location.replace(`${basePath}/login?next=${encodeURIComponent(cleanNext)}`);
+        return;
+      }
+
+      const email = authUser.email || "user@example.com";
+      const name =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.user_metadata?.user_name ||
+        email.split("@")[0] ||
+        "User";
+      const avatarUrl =
+        authUser.user_metadata?.avatar_url ||
+        authUser.user_metadata?.picture ||
+        "";
+
+      setCurrentUser({
+        id: authUser.id,
+        name,
+        email,
+        avatarUrl,
+      });
+
+      setDocuments(getLocalDocuments());
+      setIsLoaded(true);
+    }).catch(() => {
+      if (!isMounted) return;
+      const basePath = getBasePath();
+      window.location.replace(`${basePath}/login`);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Close menus on click outside
@@ -82,12 +139,14 @@ function DashboardContent() {
       id: newId,
       title,
       content,
-      owner: "me",
-      ownerEmail: "user@example.com",
+      owner: currentUser?.name || "me",
+      ownerEmail: currentUser?.email || "user@example.com",
+      ownerAvatar: currentUser?.avatarUrl,
       updatedAt: Date.now(),
       createdAt: Date.now(),
       isStarred: false,
       role: "owner",
+      lastModifiedBy: currentUser?.name || "me",
       category,
     };
 
@@ -136,6 +195,13 @@ function DashboardContent() {
     }
   };
 
+  const isOwnedByMe = (doc: DocumentItem): boolean => {
+    if (doc.owner === "me" || doc.owner === "You") return true;
+    if (currentUser?.name && doc.owner.toLowerCase() === currentUser.name.toLowerCase()) return true;
+    if (currentUser?.email && doc.ownerEmail?.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    return false;
+  };
+
   // Filter & sort docs
   const filteredDocuments = useMemo(() => {
     return documents
@@ -147,8 +213,8 @@ function DashboardContent() {
           if (!matchTitle && !matchOwner) return false;
         }
         // Owner filter
-        if (ownerFilter === "me" && doc.owner !== "me") return false;
-        if (ownerFilter === "others" && doc.owner === "me") return false;
+        if (ownerFilter === "me" && !isOwnedByMe(doc)) return false;
+        if (ownerFilter === "others" && isOwnedByMe(doc)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -157,7 +223,15 @@ function DashboardContent() {
         }
         return b.updatedAt - a.updatedAt;
       });
-  }, [documents, query, ownerFilter, sortBy]);
+  }, [documents, query, ownerFilter, sortBy, currentUser]);
+
+  if (!isLoaded || !currentUser) {
+    return (
+      <div className="flex-1 flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 pb-16">
@@ -172,7 +246,7 @@ function DashboardContent() {
               <button
                 type="button"
                 onClick={() => setTemplateGalleryOpen(!templateGalleryOpen)}
-                className="flex items-center space-x-1 text-xs font-medium text-[#5f6368] hover:text-[#202124] hover:bg-gray-200/70 px-2.5 py-1.5 rounded-md transition-colors"
+                className="flex items-center space-x-1 text-xs font-medium text-[#5f6368] hover:text-[#202124] hover:bg-gray-200/70 px-2.5 py-1.5 rounded-md transition-colors cursor-pointer"
               >
                 <span>Template gallery</span>
                 {templateGalleryOpen ? (
@@ -191,7 +265,7 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => handleCreateDocument("blank")}
-                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all flex items-center justify-center relative overflow-hidden group-hover:scale-[1.01]"
+                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all flex items-center justify-center relative overflow-hidden group-hover:scale-[1.01] cursor-pointer"
                 >
                   <div className="w-12 h-12 flex items-center justify-center">
                     <svg viewBox="0 0 48 48" className="w-10 h-10">
@@ -234,7 +308,7 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => handleCreateDocument("proposal")}
-                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01]"
+                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01] cursor-pointer"
                 >
                   <div className="space-y-1.5 pointer-events-none opacity-80">
                     <div className="w-16 h-2 bg-[#1a73e8] rounded-xs" />
@@ -258,7 +332,7 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => handleCreateDocument("resume")}
-                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01]"
+                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01] cursor-pointer"
                 >
                   <div className="space-y-1.5 pointer-events-none opacity-80">
                     <div className="w-12 h-2.5 bg-gray-800 rounded-xs" />
@@ -282,7 +356,7 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => handleCreateDocument("notes")}
-                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01]"
+                  className="w-full aspect-[3/4] bg-white border border-[#dadce0] rounded-sm hover:border-[#1a73e8] hover:shadow-md transition-all p-3 flex flex-col justify-between text-left relative overflow-hidden group-hover:scale-[1.01] cursor-pointer"
                 >
                   <div className="space-y-1.5 pointer-events-none opacity-80">
                     <div className="w-14 h-2 bg-purple-600 rounded-xs" />
@@ -339,7 +413,7 @@ function DashboardContent() {
               onClick={() =>
                 setSortBy((prev) => (prev === "updatedAt" ? "title" : "updatedAt"))
               }
-              className="p-2 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors cursor-pointer"
               title={
                 sortBy === "updatedAt"
                   ? "Sort by: Last modified"
@@ -352,7 +426,7 @@ function DashboardContent() {
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 rounded-full transition-colors cursor-pointer ${
                 viewMode === "grid"
                   ? "bg-blue-50 text-[#1a73e8]"
                   : "text-[#5f6368] hover:bg-gray-100"
@@ -365,7 +439,7 @@ function DashboardContent() {
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 rounded-full transition-colors cursor-pointer ${
                 viewMode === "list"
                   ? "bg-blue-50 text-[#1a73e8]"
                   : "text-[#5f6368] hover:bg-gray-100"
@@ -378,7 +452,7 @@ function DashboardContent() {
             <button
               type="button"
               onClick={() => handleCreateDocument()}
-              className="p-2 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors cursor-pointer"
               title="Open file picker"
             >
               <Folder className="w-4 h-4" />
@@ -400,7 +474,7 @@ function DashboardContent() {
             </p>
             <button
               onClick={() => handleCreateDocument()}
-              className="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium rounded-full shadow-sm transition-colors"
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium rounded-full shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Create new document
             </button>
@@ -446,7 +520,7 @@ function DashboardContent() {
                       <button
                         type="button"
                         onClick={(e) => handleToggleStar(e, doc.id)}
-                        className={`p-1 rounded-full hover:bg-gray-100 transition-colors ${
+                        className={`p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer ${
                           doc.isStarred ? "text-amber-500 fill-amber-500" : "text-gray-400"
                         }`}
                         title={doc.isStarred ? "Starred" : "Star"}
@@ -463,7 +537,7 @@ function DashboardContent() {
                             e.preventDefault();
                             setActiveMenuDocId(activeMenuDocId === doc.id ? null : doc.id);
                           }}
-                          className="p-1 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors"
+                          className="p-1 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors cursor-pointer"
                           title="More options"
                         >
                           <MoreVertical className="w-3.5 h-3.5" />
@@ -477,14 +551,14 @@ function DashboardContent() {
                             <button
                               type="button"
                               onClick={(e) => handleOpenRename(e, doc)}
-                              className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                              className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                             >
                               <Edit3 className="w-3.5 h-3.5 text-gray-500" /> Rename
                             </button>
                             <button
                               type="button"
                               onClick={(e) => handleOpenDelete(e, doc)}
-                              className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5 text-red-500" /> Remove
                             </button>
@@ -492,7 +566,7 @@ function DashboardContent() {
                               href={`/doc/${doc.id}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                              className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                             >
                               <ExternalLink className="w-3.5 h-3.5 text-gray-500" /> Open in new tab
                             </a>
@@ -535,7 +609,7 @@ function DashboardContent() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-[#5f6368] hidden sm:table-cell">
-                      {doc.owner === "me" ? "me" : doc.owner}
+                      {isOwnedByMe(doc) ? "me" : doc.owner}
                     </td>
                     <td className="py-3 px-4 text-[#5f6368] hidden md:table-cell">
                       {formatDate(doc.updatedAt)}
@@ -548,7 +622,7 @@ function DashboardContent() {
                         <button
                           type="button"
                           onClick={(e) => handleToggleStar(e, doc.id)}
-                          className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${
+                          className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer ${
                             doc.isStarred ? "text-amber-500 fill-amber-500" : "text-gray-400"
                           }`}
                           title="Star"
@@ -563,7 +637,7 @@ function DashboardContent() {
                               e.stopPropagation();
                               setActiveMenuDocId(activeMenuDocId === doc.id ? null : doc.id);
                             }}
-                            className="p-1.5 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors"
+                            className="p-1.5 rounded-full text-[#5f6368] hover:bg-gray-100 transition-colors cursor-pointer"
                             title="More options"
                           >
                             <MoreVertical className="w-4 h-4" />
@@ -577,14 +651,14 @@ function DashboardContent() {
                               <button
                                 type="button"
                                 onClick={(e) => handleOpenRename(e, doc)}
-                                className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                               >
                                 <Edit3 className="w-3.5 h-3.5 text-gray-500" /> Rename
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleOpenDelete(e, doc)}
-                                className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" /> Remove
                               </button>
@@ -592,7 +666,7 @@ function DashboardContent() {
                                 href={`/doc/${doc.id}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                               >
                                 <ExternalLink className="w-3.5 h-3.5 text-gray-500" /> Open in new tab
                               </a>
@@ -612,7 +686,7 @@ function DashboardContent() {
       {/* Floating Action Button for Mobile/Quick Create */}
       <button
         onClick={() => handleCreateDocument()}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-white hover:bg-gray-50 text-[#1a73e8] rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 flex items-center justify-center transition-all hover:scale-105 group focus:outline-none focus:ring-4 focus:ring-blue-100"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-white hover:bg-gray-50 text-[#1a73e8] rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 flex items-center justify-center transition-all hover:scale-105 group focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer"
         title="Create new document"
       >
         <Plus className="w-8 h-8 text-[#1a73e8] group-hover:rotate-90 transition-transform duration-200" />
@@ -636,14 +710,14 @@ function DashboardContent() {
                 <button
                   type="button"
                   onClick={() => setRenameModalDoc(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#5f6368] hover:bg-gray-100 rounded-full transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#5f6368] hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!renameInput.trim()}
-                  className="px-5 py-2 text-sm font-medium bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-50 text-white rounded-full transition-colors shadow-xs"
+                  className="px-5 py-2 text-sm font-medium bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-50 text-white rounded-full transition-colors shadow-xs cursor-pointer"
                 >
                   OK
                 </button>
@@ -665,14 +739,14 @@ function DashboardContent() {
               <button
                 type="button"
                 onClick={() => setDeleteModalDoc(null)}
-                className="px-4 py-2 text-sm font-medium text-[#5f6368] hover:bg-gray-100 rounded-full transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#5f6368] hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-5 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-xs"
+                className="px-5 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-xs cursor-pointer"
               >
                 Move to trash
               </button>
@@ -688,8 +762,8 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="flex-1 flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
       }
     >

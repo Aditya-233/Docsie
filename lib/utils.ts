@@ -25,3 +25,5 @@ export function formatDate(timestamp: number | string | Date): string {
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 }
+
+export { getBasePath, getAuthRedirectUrl } from "./supabase/base-path";

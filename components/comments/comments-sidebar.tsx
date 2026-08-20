@@ -357,6 +357,25 @@ export function CommentsSidebar({
         {/* New Comment Draft Box */}
         {isDrafting && (
           <div className="bg-white border-2 border-blue-500 rounded-xl p-3 shadow-md animate-in fade-in duration-150">
+            {currentUser && (
+              <div className="flex items-center gap-2 mb-2">
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium shrink-0 overflow-hidden"
+                  style={{ backgroundColor: currentUser.color || "#1A73E8" }}
+                >
+                  {currentUser.avatar ? (
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    currentUser.name.charAt(0)
+                  )}
+                </div>
+                <span className="text-xs font-semibold text-gray-800 truncate">{currentUser.name}</span>
+              </div>
+            )}
             {selectedText && (
               <div className="mb-2 pl-2 border-l-2 border-blue-400 text-xs text-gray-600 italic bg-blue-50/50 py-1 pr-2 rounded-r flex items-start gap-1">
                 <MessageSquareQuote className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />

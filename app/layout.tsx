@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter, Roboto } from "next/font/google";
+import { GitHubPagesRedirect } from "@/components/github-pages-redirect";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,6 +33,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${roboto.variable} h-full`}>
       <body className="h-full bg-[#f9fbfd] text-[#202124] antialiased flex flex-col font-sans">
+        <Suspense fallback={null}>
+          <GitHubPagesRedirect />
+        </Suspense>
         {children}
       </body>
     </html>

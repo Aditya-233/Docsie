@@ -115,20 +115,32 @@ export function ShareModal({
   useEffect(() => {
     if (currentUser) {
       setCollaborators((prev) => {
-        const exists = prev.some((c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id);
-        if (!exists) {
-          return [
-            {
-              id: currentUser.id,
-              name: `${currentUser.name} (You)`,
-              email: currentUser.email,
-              role: currentUser.role || "owner",
-              color: "#1A73E8",
-            },
-            ...prev.filter((c) => c.id !== "user-1"),
-          ];
+        const cleanList = prev.filter((c) => c.id !== "user-1");
+        const existingIndex = cleanList.findIndex(
+          (c) =>
+            (currentUser.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+            c.id === currentUser.id
+        );
+
+        const currentCollaborator: Collaborator = {
+          id: currentUser.id,
+          name: currentUser.name.endsWith("(You)") ? currentUser.name : `${currentUser.name} (You)`,
+          email: currentUser.email,
+          role: currentUser.role || "owner",
+          color: (currentUser as any).color || "#1A73E8",
+          avatar: (currentUser as any).avatar || (currentUser as any).avatar_url,
+        };
+
+        if (existingIndex >= 0) {
+          const updated = [...cleanList];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            ...currentCollaborator,
+          };
+          return updated;
         }
-        return prev;
+
+        return [currentCollaborator, ...cleanList];
       });
     }
   }, [currentUser]);
@@ -214,9 +226,18 @@ export function ShareModal({
   const getShareableLink = () => {
     if (typeof window !== "undefined") {
       const origin = window.location.origin;
-      return `${origin}/document/${docId}`;
+      const isGhPages =
+        process.env.NEXT_PUBLIC_BASE_PATH === "/Docsie" ||
+        process.env.GITHUB_PAGES === "true" ||
+        window.location.pathname.startsWith("/Docsie");
+      const basePath = isGhPages ? "/Docsie" : "";
+      return `${origin}${basePath}/doc/${docId}`;
     }
-    return `https://docs.google.com/document/d/${docId}`;
+    const isGhPages =
+      process.env.NEXT_PUBLIC_BASE_PATH === "/Docsie" ||
+      process.env.GITHUB_PAGES === "true";
+    const basePath = isGhPages ? "/Docsie" : "";
+    return `${basePath}/doc/${docId}`;
   };
 
   const handleCopyLink = async () => {
@@ -348,12 +369,22 @@ export function ShareModal({
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold uppercase shrink-0 shadow-xs"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold uppercase shrink-0 shadow-xs overflow-hidden"
                       style={{
                         backgroundColor: collaborator.color || "#1A73E8",
                       }}
                     >
-                      {collaborator.name ? collaborator.name.charAt(0) : <User className="w-4 h-4" />}
+                      {collaborator.avatar ? (
+                        <img
+                          src={collaborator.avatar}
+                          alt={collaborator.name}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : collaborator.name ? (
+                        collaborator.name.charAt(0)
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">
