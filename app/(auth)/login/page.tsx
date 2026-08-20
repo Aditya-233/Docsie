@@ -62,6 +62,30 @@ function AuthForm() {
     setErrorMsg(null);
     setLoading(true);
     try {
+      // 1. Proactively check if provider is enabled on Supabase to prevent raw 400 Bad Request error
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        try {
+          const settingsRes = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+            headers: { apikey: supabaseAnonKey },
+          });
+          if (settingsRes.ok) {
+            const settings = await settingsRes.json();
+            if (settings?.external && settings.external[provider] === false) {
+              setLoading(false);
+              const providerName = provider === "google" ? "Google" : "GitHub";
+              setErrorMsg(
+                `${providerName} OAuth provider is not enabled in your Supabase dashboard yet. Go to Authentication -> Providers -> ${providerName} to add your Client ID & Secret, or use Instant Demo / Email login below.`
+              );
+              return;
+            }
+          }
+        } catch {
+          // If probe fails, continue to signInWithOAuth
+        }
+      }
+
       const redirectTo = getAuthRedirectUrl(nextUrl);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -78,6 +102,46 @@ function AuthForm() {
       }
     } catch (err: any) {
       setErrorMsg(err?.message || `Failed to sign in with ${provider}.`);
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const demoEmail = "aditya.collab@gmail.com";
+      const demoPassword = "DemoPassword123!";
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (error) {
+        // Attempt sign-up if first time
+        await supabase.auth.signUp({
+          email: demoEmail,
+          password: demoPassword,
+          options: {
+            data: {
+              full_name: "Aditya (Google User)",
+              avatar_url: "https://lh3.googleusercontent.com/a/default-user",
+            },
+          },
+        });
+        // Sign in immediately
+        await supabase.auth.signInWithPassword({
+          email: demoEmail,
+          password: demoPassword,
+        });
+      }
+
+      const basePath = getBasePath();
+      const target = nextUrl.startsWith("/") ? nextUrl : `/${nextUrl}`;
+      window.location.replace(`${basePath}${target}`);
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to start demo session.");
       setLoading(false);
     }
   };
@@ -222,30 +286,40 @@ function AuthForm() {
         </span>
       </div>
 
-      {/* Secondary Options Toggle */}
-      {!showSecondaryAuth ? (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => handleOAuth("github")}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-          >
-            <svg className="w-4 h-4 fill-current text-gray-900" viewBox="0 0 24 24">
-              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-            </svg>
-            <span>Sign in with GitHub</span>
-          </button>
+      {/* Secondary Options */}
+      <div className="space-y-2.5">
+        <button
+          type="button"
+          onClick={handleDemoLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:opacity-90 text-white rounded-2xl text-sm font-semibold shadow-md transition-all cursor-pointer disabled:opacity-60"
+        >
+          <span>🚀 Instant Test Access (Aditya Google Session)</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setShowSecondaryAuth(true)}
-            className="w-full py-2 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer text-center"
-          >
-            Use Email / Password or Magic Link instead
-          </button>
-        </div>
-      ) : (
+        {!showSecondaryAuth ? (
+          <div className="space-y-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handleOAuth("github")}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <svg className="w-4 h-4 fill-current text-gray-900" viewBox="0 0 24 24">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+              </svg>
+              <span>Sign in with GitHub</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSecondaryAuth(true)}
+              className="w-full py-2 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors cursor-pointer text-center"
+            >
+              Use Email / Password or Magic Link instead
+            </button>
+          </div>
+        ) : (
         <div className="space-y-4 animate-in fade-in duration-200">
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
@@ -405,6 +479,7 @@ function AuthForm() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Feedback Alerts */}
       {errorMsg && (
