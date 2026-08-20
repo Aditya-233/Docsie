@@ -263,9 +263,15 @@ export class SupabaseYjsProvider extends Observable<string> {
     });
 
     this.channel
-      .on('broadcast', { event: 'yjs_raw' }, (payload: { payload: { data: string } }) => {
-        if (payload?.payload?.data) {
-          const bytes = base64ToUint8Array(payload.payload.data);
+      .on('broadcast', { event: 'yjs_raw' }, (payload: any) => {
+        const rawData =
+          payload?.payload?.data ||
+          payload?.data ||
+          (typeof payload?.payload === 'string' ? payload.payload : null) ||
+          (typeof payload === 'string' ? payload : null);
+
+        if (rawData) {
+          const bytes = base64ToUint8Array(rawData);
           this.handleIncomingMessage(bytes);
         }
       })

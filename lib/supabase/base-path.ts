@@ -22,12 +22,18 @@ export function getBasePath(): string {
 
 export function getAuthRedirectUrl(nextPath: string = "/"): string {
   const basePath = getBasePath();
-  const normalizedNext = nextPath.startsWith("/") ? nextPath : `/${nextPath}`;
+  let target = nextPath || "/";
+  if (basePath && target.startsWith(basePath)) {
+    target = target.slice(basePath.length) || "/";
+  }
+  if (!target.startsWith("/")) {
+    target = `/${target}`;
+  }
 
   if (typeof window === "undefined") {
-    return `${basePath}/auth/callback?next=${encodeURIComponent(normalizedNext)}`;
+    return `${basePath}/auth/callback?next=${encodeURIComponent(target)}`;
   }
 
   const origin = window.location.origin;
-  return `${origin}${basePath}/auth/callback?next=${encodeURIComponent(normalizedNext)}`;
+  return `${origin}${basePath}/auth/callback?next=${encodeURIComponent(target)}`;
 }

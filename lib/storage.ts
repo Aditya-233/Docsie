@@ -14,6 +14,18 @@ export interface DocumentItem {
   thumbnail?: string;
 }
 
+export const PRE_RENDERED_DOC_IDS = [
+  "demo",
+  "new",
+  "getting-started",
+  "q3-planning-doc",
+  "design-system-spec",
+  "blank",
+  "proposal",
+  "resume",
+  "notes",
+] as const;
+
 const STORAGE_KEY = "google_docs_clone_documents";
 
 export const INITIAL_TEMPLATES: Array<{

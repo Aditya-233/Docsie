@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import * as Y from "yjs";
@@ -87,10 +87,14 @@ function EditorContent({ docId }: { docId: string }) {
   // Supabase client instance
   const supabase = useMemo(() => createClient(), []);
 
-  // Supabase & Yjs CRDT instance
+  // Supabase & Yjs CRDT instance — keyed on docId only, never recreated when user metadata updates
   const ydoc = useMemo(() => new Y.Doc(), [docId]);
-  const provider = useMemo(() => {
-    return new SupabaseYjsProvider(docId, ydoc, {
+  const providerRef = useRef<InstanceType<typeof SupabaseYjsProvider> | null>(null);
+  const [provider, setProvider] = useState<InstanceType<typeof SupabaseYjsProvider> | null>(null);
+
+  // Create / destroy provider only when docId or ydoc changes
+  useEffect(() => {
+    const p = new SupabaseYjsProvider(docId, ydoc, {
       supabase,
       user: {
         id: currentUser.id,
@@ -100,16 +104,26 @@ function EditorContent({ docId }: { docId: string }) {
         avatar_url: currentUser.avatar_url,
       },
     });
-  }, [
-    docId,
-    ydoc,
-    supabase,
-    currentUser.id,
-    currentUser.name,
-    currentUser.email,
-    currentUser.color,
-    currentUser.avatar_url,
-  ]);
+    providerRef.current = p;
+    setProvider(p);
+
+    return () => {
+      p.destroy();
+      providerRef.current = null;
+    };
+  }, [docId, ydoc, supabase]);
+
+  // When user identity resolves, push updated user into the existing awareness without recreating
+  useEffect(() => {
+    if (!providerRef.current || currentUser.id === "loading-user") return;
+    providerRef.current.awareness?.setLocalStateField("user", {
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      color: currentUser.color,
+      avatar_url: currentUser.avatar_url,
+    });
+  }, [currentUser.id, currentUser.name, currentUser.email, currentUser.color, currentUser.avatar_url]);
 
   // Active collaborator presence list from Yjs Awareness
   const [collaboratorPresence, setCollaboratorPresence] = useState<
@@ -139,7 +153,15 @@ function EditorContent({ docId }: { docId: string }) {
 
         if (!user) {
           const basePath = getBasePath();
-          window.location.replace(`${basePath}/login?next=${encodeURIComponent(`/doc/${docId}`)}`);
+          // Preserve full URL including query params (role, token) and hash
+          const fullPath = typeof window !== "undefined"
+            ? window.location.pathname + window.location.search + window.location.hash
+            : `/doc/${docId}`;
+          // Strip basePath prefix before encoding to avoid double-prefix
+          const cleanNext = basePath && fullPath.startsWith(basePath)
+            ? fullPath.slice(basePath.length) || "/"
+            : fullPath;
+          window.location.replace(`${basePath}/login?next=${encodeURIComponent(cleanNext)}`);
           return;
         }
 
@@ -226,6 +248,8 @@ function EditorContent({ docId }: { docId: string }) {
 
   // Track provider sync status
   useEffect(() => {
+    if (!provider) return;
+
     const handleStatus = (event: { status: string }[]) => {
       const s = event[0]?.status;
       if (s === "connected") setSyncStatus("saved");
@@ -504,7 +528,7 @@ function EditorContent({ docId }: { docId: string }) {
                   editorInstance.commands.setContent(snapshot.content);
                 }
                 setSyncStatus("saved");
-                await provider.saveSnapshot().catch(() => {});
+                await provider?.saveSnapshot().catch(() => {});
               }}
             />
           </aside>

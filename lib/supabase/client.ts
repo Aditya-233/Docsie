@@ -393,7 +393,13 @@ export function createClient(): SupabaseClient {
   if (browserClient) return browserClient;
 
   if (isSupabaseConfigured()) {
-    browserClient = createBrowserClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+    browserClient = createBrowserClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+      realtime: {
+        params: {
+          eventsPerSecond: 40,
+        },
+      },
+    });
   } else {
     browserClient = createMockBrowserClient();
   }

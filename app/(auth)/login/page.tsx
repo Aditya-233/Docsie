@@ -36,7 +36,13 @@ function AuthForm() {
         if (!isMounted) return;
         if (user) {
           const basePath = getBasePath();
-          const target = nextUrl.startsWith("/") ? nextUrl : `/${nextUrl}`;
+          let target = nextUrl || "/";
+          if (basePath && target.startsWith(basePath)) {
+            target = target.slice(basePath.length) || "/";
+          }
+          if (!target.startsWith("/")) {
+            target = `/${target}`;
+          }
           window.location.replace(`${basePath}${target}`);
         } else {
           setCheckingSession(false);

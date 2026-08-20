@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { extractSpaRedirectTarget, resolveHistoryPath } from "@/lib/spa-routing";
+import { PRE_RENDERED_DOC_IDS } from "@/lib/storage";
 
 /**
  * GitHubPagesRedirect
@@ -33,20 +34,14 @@ export function GitHubPagesRedirect() {
     if (!target) return;
 
     let routeTarget = target;
-    const docMatch = target.match(/^\/doc\/([a-zA-Z0-9_-]+)/);
-    const preRendered = [
-      "demo",
-      "new",
-      "getting-started",
-      "q3-planning-doc",
-      "design-system-spec",
-      "blank",
-      "proposal",
-      "resume",
-      "notes",
-    ];
-    if (docMatch && !preRendered.includes(docMatch[1])) {
-      routeTarget = `/doc?id=${encodeURIComponent(docMatch[1])}`;
+    const docMatch = target.match(/^\/doc\/([a-zA-Z0-9_-]+)(\?.*)?$/);
+    if (docMatch) {
+      const docId = docMatch[1];
+      const extraQuery = docMatch[2] || "";
+      if (!PRE_RENDERED_DOC_IDS.includes(docId as any)) {
+        const queryPrefix = extraQuery ? extraQuery.replace(/^\?/, "&") : "";
+        routeTarget = `/doc?id=${encodeURIComponent(docId)}${queryPrefix}`;
+      }
     }
 
     if (typeof window !== "undefined") {

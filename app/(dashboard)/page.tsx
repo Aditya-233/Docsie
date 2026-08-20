@@ -23,6 +23,7 @@ import {
 import {
   DocumentItem,
   INITIAL_TEMPLATES,
+  PRE_RENDERED_DOC_IDS,
   getLocalDocuments,
   saveLocalDocument,
   deleteLocalDocument,
@@ -140,18 +141,9 @@ function DashboardContent() {
   }, []);
 
   const getDocHref = (id: string) => {
-    const preRendered = [
-      "demo",
-      "new",
-      "getting-started",
-      "q3-planning-doc",
-      "design-system-spec",
-      "blank",
-      "proposal",
-      "resume",
-      "notes",
-    ];
-    return preRendered.includes(id) ? `/doc/${id}` : `/doc?id=${encodeURIComponent(id)}`;
+    return (PRE_RENDERED_DOC_IDS as readonly string[]).includes(id)
+      ? `/doc/${id}`
+      : `/doc?id=${encodeURIComponent(id)}`;
   };
 
   const handleCreateDocument = (templateId?: string) => {
