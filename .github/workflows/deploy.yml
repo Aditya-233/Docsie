@@ -33,7 +33,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install
 
       - name: Strict Typecheck (TypeScript 7)
         run: npm run typecheck
@@ -44,8 +44,12 @@ jobs:
       - name: Run Test Suite
         run: npm test
 
-      - name: Build Application
+      - name: Build and Export Application
         run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://vdfprwerslivqcmbsvlc.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkZnByd2Vyc2xpdnFjbWJzdmxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNzM2ODksImV4cCI6MjEwMjc0OTY4OX0.dCcf_Stlw_dK-Q7ZSwpzp3lLALyQyRyvBSPjBrs5m9Q' }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -53,7 +57,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './out'
 
       - name: Deploy to GitHub Pages
         id: deployment
