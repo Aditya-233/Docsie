@@ -1,0 +1,23 @@
+// Augment Tiptap types with all installed extensions
+import "@tiptap/core";
+import "@tiptap/starter-kit";
+import "@tiptap/extension-bold";
+import "@tiptap/extension-italic";
+import "@tiptap/extension-strike";
+import "@tiptap/extension-underline";
+import "@tiptap/extension-color";
+import "@tiptap/extension-highlight";
+import "@tiptap/extension-font-family";
+import "@tiptap/extension-text-style";
+import "@tiptap/extension-text-align";
+import "@tiptap/extension-table";
+import "@tiptap/extension-table-row";
+import "@tiptap/extension-table-cell";
+import "@tiptap/extension-table-header";
+import "@tiptap/extension-image";
+import "@tiptap/extension-link";
+import "@tiptap/extension-task-list";
+import "@tiptap/extension-task-item";
+import "./font-size";
+import "./line-height";
+import "./indent";

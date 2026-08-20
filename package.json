@@ -1,66 +1,86 @@
 {
   "name": "google-docs-clone",
-  "version": "2.0.0",
-  "description": "Production-grade, modular Google Docs clone with real-time multi-person collaboration, role permissions, and comprehensive test suite",
+  "version": "3.0.0",
+  "description": "Production-grade Next.js + Tiptap + Yjs + Supabase Realtime collaborative document platform",
   "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "signaling": "node scripts/signaling.js",
-    "build": "tsc --noEmit && vite build",
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
-    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
-    "test:unit": "node --test tests/unit/*.test.js",
-    "test:integration": "node --test tests/integration/*.test.js",
-    "simulate:collab": "node scripts/simulate_collab.js",
-    "serve": "node scripts/serve.js"
-  },
-  "keywords": [
-    "google-docs",
-    "real-time",
-    "collaboration",
-    "rich-text",
-    "wysiwyg",
-    "permissions"
-  ],
-  "author": "Antigravity",
-  "license": "MIT",
-  "directories": {
-    "test": "tests"
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.1",
+    "@tiptap/extension-collaboration": "^2.11.5",
+    "@tiptap/extension-collaboration-cursor": "^2.11.5",
+    "@tiptap/extension-color": "^2.11.5",
+    "@tiptap/extension-font-family": "^2.11.5",
+    "@tiptap/extension-highlight": "^2.11.5",
+    "@tiptap/extension-image": "^2.11.5",
+    "@tiptap/extension-link": "^2.27.2",
+    "@tiptap/extension-table": "^2.11.5",
+    "@tiptap/extension-table-cell": "^2.11.5",
+    "@tiptap/extension-table-header": "^2.11.5",
+    "@tiptap/extension-table-row": "^2.11.5",
+    "@tiptap/extension-task-item": "^2.27.2",
+    "@tiptap/extension-task-list": "^2.27.2",
+    "@tiptap/extension-text-align": "^2.11.5",
+    "@tiptap/extension-text-style": "^2.11.5",
+    "@tiptap/extension-underline": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/react": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "html-docx-js": "^0.3.1",
-    "html2pdf.js": "^0.14.0",
+    "docx": "^9.2.0",
+    "lib0": "^0.2.99",
     "lucide-react": "^1.33.0",
-    "quill": "^2.0.3",
-    "quill-cursors": "^5.0.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.6.0",
-    "ws": "^8.21.3",
-    "y-indexeddb": "^9.0.12",
-    "y-quill": "^1.0.0",
-    "y-webrtc": "^10.3.0",
-    "y-websocket": "^3.1.0",
-    "yjs": "^13.6.32"
+    "next": "^16.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.0.2",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.23"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.2.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
-    "autoprefixer": "^10.5.4",
-    "eslint": "^10.8.1",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.11.0",
-    "postcss": "^8.5.26",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0",
-    "vite": "^8.2.1"
+    "@babel/core": "^8.0.1",
+    "@babel/eslint-parser": "^8.0.1",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
+    "@eslint/js": "^9.21.0",
+    "@tailwindcss/postcss": "^4.0.9",
+    "@types/node": "^22.13.5",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9.21.0",
+    "eslint-config-next": "^16.3.1",
+    "globals": "^15.15.0",
+    "postcss": "^8.5.3",
+    "supabase": "^2.115.0",
+    "tailwindcss": "^4.0.9",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "typescript-eslint": "^8.26.0"
+  },
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/parser": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/type-utils": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/utils": {
+      "typescript": "$typescript"
+    }
   }
 }
