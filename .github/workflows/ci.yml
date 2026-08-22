@@ -2,38 +2,24 @@ name: Production CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
-
       - name: Install dependencies
         run: npm install
-
-      - name: TypeScript Strict Check
-        run: npm run typecheck
-
-      - name: ESLint Code Quality
-        run: npm run lint
-
-      - name: Automated Test Suite (CRDT, Awareness, Perms, Schema)
+      - name: Type check
+        run: npm run check
+      - name: Run tests
         run: npm test
-
-      - name: Production Build
+      - name: Build
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://vdfprwerslivqcmbsvlc.supabase.co' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkZnByd2Vyc2xpdnFjbWJzdmxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNzM2ODksImV4cCI6MjEwMjc0OTY4OX0.dCcf_Stlw_dK-Q7ZSwpzp3lLALyQyRyvBSPjBrs5m9Q' }}

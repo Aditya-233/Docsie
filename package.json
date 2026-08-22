@@ -1,87 +1,57 @@
 {
-  "name": "google-docs-clone",
-  "version": "3.0.0",
-  "description": "Production-grade Next.js + Tiptap + Yjs + Supabase Realtime collaborative document platform",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/**/*.test.ts",
-    "postbuild": "node scripts/postbuild.js"
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.49.1",
-    "@tiptap/extension-collaboration": "^2.11.5",
-    "@tiptap/extension-collaboration-cursor": "^2.11.5",
-    "@tiptap/extension-color": "^2.11.5",
-    "@tiptap/extension-font-family": "^2.11.5",
-    "@tiptap/extension-highlight": "^2.11.5",
-    "@tiptap/extension-image": "^2.11.5",
-    "@tiptap/extension-link": "^2.27.2",
-    "@tiptap/extension-table": "^2.11.5",
-    "@tiptap/extension-table-cell": "^2.11.5",
-    "@tiptap/extension-table-header": "^2.11.5",
-    "@tiptap/extension-table-row": "^2.11.5",
-    "@tiptap/extension-task-item": "^2.27.2",
-    "@tiptap/extension-task-list": "^2.27.2",
-    "@tiptap/extension-text-align": "^2.11.5",
-    "@tiptap/extension-text-style": "^2.11.5",
-    "@tiptap/extension-underline": "^2.11.5",
-    "@tiptap/pm": "^2.11.5",
-    "@tiptap/react": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "docx": "^9.2.0",
-    "lib0": "^0.2.99",
-    "lucide-react": "^1.33.0",
-    "next": "^16.3.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.0.2",
-    "y-protocols": "^1.0.6",
-    "yjs": "^13.6.23"
-  },
-  "devDependencies": {
-    "@babel/core": "^8.0.1",
-    "@babel/eslint-parser": "^8.0.1",
-    "@babel/preset-react": "^8.0.1",
-    "@babel/preset-typescript": "^8.0.1",
-    "@eslint/js": "^9.21.0",
-    "@tailwindcss/postcss": "^4.0.9",
-    "@types/node": "^22.13.5",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "eslint": "^9.21.0",
-    "eslint-config-next": "^16.3.1",
-    "globals": "^15.15.0",
-    "postcss": "^8.5.3",
-    "supabase": "^2.115.0",
-    "tailwindcss": "^4.0.9",
-    "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
-    "typescript-eslint": "^8.26.0"
-  },
-  "overrides": {
-    "typescript-eslint": {
-      "typescript": "$typescript"
+    "name": "google-docs-clone",
+    "version": "3.0.0",
+    "description": "Production-grade SvelteKit 2 + Svelte 5 + Tiptap + Yjs + Supabase Realtime collaborative document platform",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build",
+        "preview": "vite preview",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "test": "tsx --test tests/**/*.test.ts"
     },
-    "@typescript-eslint/parser": {
-      "typescript": "$typescript"
+    "dependencies": {
+        "@supabase/ssr": "^0.5.2",
+        "@supabase/supabase-js": "^2.49.1",
+        "@tiptap/core": "^2.11.5",
+        "@tiptap/extension-collaboration": "^2.11.5",
+        "@tiptap/extension-collaboration-cursor": "^2.11.5",
+        "@tiptap/extension-color": "^2.11.5",
+        "@tiptap/extension-font-family": "^2.11.5",
+        "@tiptap/extension-highlight": "^2.11.5",
+        "@tiptap/extension-image": "^2.11.5",
+        "@tiptap/extension-link": "^2.27.2",
+        "@tiptap/extension-table": "^2.11.5",
+        "@tiptap/extension-table-cell": "^2.11.5",
+        "@tiptap/extension-table-header": "^2.11.5",
+        "@tiptap/extension-table-row": "^2.11.5",
+        "@tiptap/extension-task-item": "^2.27.2",
+        "@tiptap/extension-task-list": "^2.27.2",
+        "@tiptap/extension-text-align": "^2.11.5",
+        "@tiptap/extension-text-style": "^2.11.5",
+        "@tiptap/extension-underline": "^2.11.5",
+        "@tiptap/pm": "^2.11.5",
+        "@tiptap/starter-kit": "^2.11.5",
+        "docx": "^9.2.0",
+        "lib0": "^0.2.99",
+        "lucide-svelte": "^0.475.0",
+        "y-protocols": "^1.0.6",
+        "yjs": "^13.6.23"
     },
-    "@typescript-eslint/type-utils": {
-      "typescript": "$typescript"
-    },
-    "@typescript-eslint/typescript-estree": {
-      "typescript": "$typescript"
-    },
-    "@typescript-eslint/utils": {
-      "typescript": "$typescript"
+    "devDependencies": {
+        "@sveltejs/adapter-auto": "^4.0.0",
+        "@sveltejs/adapter-static": "^3.0.10",
+        "@sveltejs/kit": "^2.17.2",
+        "@sveltejs/vite-plugin-svelte": "^5.0.3",
+        "@tailwindcss/vite": "^4.0.9",
+        "@types/node": "^22.13.5",
+        "svelte": "^5.20.5",
+        "svelte-check": "^4.1.4",
+        "tailwindcss": "^4.0.9",
+        "tsx": "^4.23.12",
+        "typescript": "^5.7.3",
+        "vite": "^6.2.0"
     }
-  }
 }

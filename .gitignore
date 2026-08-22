@@ -30,10 +30,11 @@ lerna-debug.log*
 coverage
 .nyc_output
 
-# Next.js
-.next/
+# SvelteKit build output
+.svelte-kit/
+build/
+dist/
 out/
-tsconfig.tsbuildinfo
 
 # Environment files
 .env
@@ -51,4 +52,3 @@ tsconfig.tsbuildinfo
 /tiptap
 /y-protocols
 /yjs
-
