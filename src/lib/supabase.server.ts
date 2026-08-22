@@ -36,16 +36,21 @@ export function createClient(c?: Cookies | RequestEvent | { cookies: Cookies }):
     if (!isSupabaseServerConfigured()) return createMockServerClient();
     const cookies = c && 'cookies' in c ? c.cookies : (c as Cookies | undefined);
     if (!cookies) return createMockServerClient();
-    return createServerClient(URL, KEY, {
-        cookies: {
-            getAll: () => cookies.getAll(),
-            setAll: (list: any[]) => {
-                try {
-                    list.forEach(({ name, value, options }: any) => cookies.set(name, value, { ...options, path: options?.path ?? '/' }));
-                } catch { }
+    try {
+        return createServerClient(URL, KEY, {
+            cookies: {
+                getAll: () => cookies.getAll(),
+                setAll: (list: any[]) => {
+                    try {
+                        list.forEach(({ name, value, options }: any) => cookies.set(name, value, { ...options, path: options?.path ?? '/' }));
+                    } catch { }
+                }
             }
-        }
-    });
+        });
+    } catch {
+        return createMockServerClient();
+    }
 }
+
 
 export { URL as SUPABASE_URL, KEY as SUPABASE_ANON_KEY };
