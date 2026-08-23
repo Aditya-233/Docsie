@@ -153,5 +153,13 @@ describe("Docsie Full-Stack Test Suite", () => {
             assert.ok(schemaSql.includes("CREATE TABLE IF NOT EXISTS public.document_collaborators"));
             assert.ok(schemaSql.includes("ENABLE ROW LEVEL SECURITY"));
         });
+
+        it("should verify Google OAuth configuration in supabase/config.toml", () => {
+            const configToml = fs.readFileSync(path.join(process.cwd(), "supabase/config.toml"), "utf-8");
+            assert.ok(configToml.includes("[auth.external.google]"));
+            assert.ok(configToml.includes("client_id = \"env(GOOGLE_CLIENT_ID)\""));
+            assert.ok(configToml.includes("https://aditya-233.github.io/Docsie/**"));
+            assert.ok(configToml.includes("http://localhost:5173/**"));
+        });
     });
 });

@@ -19,6 +19,7 @@
         toggleStarLocalDocument,
     } from "$lib/storage";
     import { formatDate } from "$lib/utils";
+    import { authState } from "$lib/auth.svelte";
 
     const { data }: { data: PageData } = $props();
     let documents = $state(getLocalDocuments());
@@ -27,9 +28,20 @@
     let profileOpen = $state(false);
     let searchQuery = $state(page.url.searchParams.get("q") ?? "");
 
-    const userEmail = $derived(data.user?.email || "user@example.com");
+    const userEmail = $derived(
+        authState.user?.email || data.user?.email || "user@example.com",
+    );
     const userName = $derived(
-        data.user?.user_metadata?.full_name || userEmail.split("@")[0] || "You",
+        authState.user?.user_metadata?.full_name ||
+            authState.user?.user_metadata?.name ||
+            data.user?.user_metadata?.full_name ||
+            userEmail.split("@")[0] ||
+            "You",
+    );
+    const userAvatar = $derived(
+        authState.user?.user_metadata?.avatar_url ||
+            authState.user?.user_metadata?.picture ||
+            null,
     );
 
     const filteredDocs = $derived(
@@ -119,19 +131,42 @@
             <button
                 type="button"
                 onclick={() => (profileOpen = !profileOpen)}
-                class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-medium text-xs"
-                >{userName[0].toUpperCase()}</button
+                class="w-8 h-8 rounded-full overflow-hidden bg-blue-600 text-white flex items-center justify-center font-medium text-xs hover:ring-2 hover:ring-blue-400/50 transition-all cursor-pointer"
+                aria-label="User profile"
             >
+                {#if userAvatar}
+                    <img src={userAvatar} alt={userName} class="w-full h-full object-cover" />
+                {:else}
+                    {userName[0].toUpperCase()}
+                {/if}
+            </button>
             {#if profileOpen}
                 <div
-                    class="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-50 text-xs space-y-2"
+                    class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50 text-xs space-y-3 animate-fadeIn"
                 >
-                    <p class="font-medium text-gray-800 truncate">{userName}</p>
-                    <a
-                        href="/login"
-                        class="flex items-center gap-2 text-gray-700 hover:bg-gray-50 p-1.5 rounded"
-                        ><LogOut size={14} /> Switch Account</a
+                    <div class="flex items-center gap-3 pb-3 border-b border-gray-100">
+                        <div class="w-9 h-9 rounded-full overflow-hidden bg-blue-600 text-white flex items-center justify-center font-semibold text-xs shrink-0">
+                            {#if userAvatar}
+                                <img src={userAvatar} alt={userName} class="w-full h-full object-cover" />
+                            {:else}
+                                {userName[0].toUpperCase()}
+                            {/if}
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="font-semibold text-gray-900 truncate">{userName}</p>
+                            <p class="text-[11px] text-gray-500 truncate">{userEmail}</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onclick={() => {
+                            profileOpen = false;
+                            authState.signOut();
+                        }}
+                        class="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 p-2 rounded-lg font-medium transition-colors cursor-pointer"
                     >
+                        <LogOut size={15} /> Log Out
+                    </button>
                 </div>
             {/if}
         </div>

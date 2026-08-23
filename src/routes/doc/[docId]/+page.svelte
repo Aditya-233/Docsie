@@ -58,6 +58,7 @@
         toggleStarLocalDocument,
     } from "$lib/storage";
     import { SupabaseYjsProvider, createClient } from "$lib/supabase.svelte";
+    import { authState } from "$lib/auth.svelte";
     import type { CommentThread, DocumentVersion, UserRole } from "$lib/types";
     import { formatDate } from "$lib/utils";
 
@@ -89,16 +90,25 @@
     const editor = $derived(docsie.instance);
 
     const userName = $derived(
-        data.user?.user_metadata?.full_name ||
+        authState.user?.user_metadata?.full_name ||
+            authState.user?.user_metadata?.name ||
+            data.user?.user_metadata?.full_name ||
+            authState.user?.email?.split("@")[0] ||
             data.user?.email?.split("@")[0] ||
             "Collaborator",
     );
+    const userAvatar = $derived(
+        authState.user?.user_metadata?.avatar_url ||
+            authState.user?.user_metadata?.picture ||
+            null,
+    );
     const currentUser = $derived({
-        id: data.user?.id || "usr-me",
+        id: authState.user?.id || data.user?.id || "usr-me",
         name: userName,
-        email: data.user?.email || "you@example.com",
+        email: authState.user?.email || data.user?.email || "you@example.com",
         role: "owner" as const,
         color: "#1a73e8",
+        avatar: userAvatar,
     });
 
     const shareUrl = $derived(
