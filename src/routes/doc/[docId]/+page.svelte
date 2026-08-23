@@ -5,8 +5,6 @@
     import {
         FileText,
         Star,
-        Cloud,
-        CloudOff,
         Share2,
         Undo2,
         Redo2,
@@ -32,6 +30,7 @@
         Shield,
         Globe,
         Copy,
+        Sparkles
     } from "lucide-svelte";
     import {
         DocsieEditor,
@@ -107,7 +106,7 @@
         name: userName,
         email: authState.user?.email || data.user?.email || "you@example.com",
         role: "owner" as const,
-        color: "#1a73e8",
+        color: "#18181b",
         avatar: userAvatar,
     });
 
@@ -139,7 +138,7 @@
         return editor?.isActive?.("strike") ?? false;
     }
     function getFont() {
-        return editor?.getAttributes?.("textStyle")?.fontFamily || "Arial";
+        return editor?.getAttributes?.("textStyle")?.fontFamily || "Inter";
     }
     function getHeading() {
         for (let i = 1; i <= 6; i++)
@@ -271,15 +270,13 @@
     }}
 />
 
-<div class="flex flex-col h-screen overflow-hidden bg-[#f9fbfd]">
-    <!-- Menu Bar -->
-    <header
-        class="bg-white border-b border-gray-200 select-none px-4 py-2 flex items-center justify-between"
-    >
+<div class="flex flex-col h-screen overflow-hidden bg-[#fafafa] font-sans text-zinc-900">
+    <!-- Sleek Shadcn / Vercel Header -->
+    <header class="bg-white border-b border-zinc-200/80 select-none px-4 py-2 flex items-center justify-between shadow-2xs z-40">
         <div class="flex items-center gap-3 min-w-0">
-            <a href="/" class="text-blue-600 hover:opacity-80"
-                ><FileText size={32} /></a
-            >
+            <a href="/" class="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center shadow-xs hover:bg-zinc-800 transition-colors shrink-0">
+                <FileText size={17} class="stroke-[2.2]" />
+            </a>
             <div class="flex flex-col min-w-0">
                 <div class="flex items-center gap-2">
                     <input
@@ -289,302 +286,316 @@
                         onkeydown={(e) =>
                             e.key === "Enter" &&
                             (e.target as HTMLInputElement).blur()}
-                        class="text-base font-medium text-gray-900 border border-transparent hover:border-gray-300 focus:border-blue-500 rounded px-1 -ml-1 outline-none truncate max-w-xs sm:max-w-md"
+                        class="text-sm font-semibold text-zinc-950 border border-transparent hover:border-zinc-200 focus:border-zinc-950 rounded-md px-1.5 py-0.5 -ml-1.5 outline-none truncate max-w-xs sm:max-w-md transition-colors"
                     />
                     <button
                         type="button"
                         aria-label="Star document"
                         onclick={() =>
                             (isStarred = toggleStarLocalDocument(docId))}
-                        class="text-gray-400 hover:text-amber-500"
+                        class="text-zinc-400 hover:text-amber-500 transition-colors"
                     >
                         <Star
-                            size={16}
+                            size={14}
                             class={isStarred
                                 ? "fill-amber-400 text-amber-500"
                                 : ""}
                         />
                     </button>
+
+                    <!-- Minimalist Sync Status Badge -->
                     {#if syncStatus === "saved"}
-                        <span title="Saved to cloud"
-                            ><Cloud size={14} class="text-gray-400" /></span
-                        >
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-500 bg-zinc-100 border border-zinc-200/70 px-2 py-0.5 rounded-full" title="Changes saved">
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-950"></span>
+                            Saved
+                        </span>
                     {:else if syncStatus === "syncing"}
-                        <span title="Saving..."
-                            ><Cloud
-                                size={14}
-                                class="text-blue-500 animate-pulse"
-                            /></span
-                        >
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-800 bg-zinc-100 border border-zinc-300 px-2 py-0.5 rounded-full animate-pulse" title="Saving changes...">
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-600 animate-ping"></span>
+                            Syncing...
+                        </span>
                     {:else}
-                        <span title="Offline"
-                            ><CloudOff size={14} class="text-red-400" /></span
-                        >
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full" title="Offline mode">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                            Offline
+                        </span>
                     {/if}
                 </div>
-                <nav
-                    class="flex items-center gap-1 text-xs text-gray-600 -ml-1 mt-0.5"
-                    data-menu
-                >
+
+                <!-- Sleek Menu Bar -->
+                <nav class="flex items-center gap-0.5 text-xs text-zinc-600 -ml-1 mt-0.5 font-medium" data-menu>
                     <div class="relative">
                         <button
                             type="button"
-                            class="px-1.5 py-0.5 rounded hover:bg-gray-100"
-                            onclick={() =>
-                                (activeMenu =
-                                    activeMenu === "file" ? null : "file")}
-                            >File</button
+                            class="px-2 py-0.5 rounded-md hover:bg-zinc-100 hover:text-zinc-950 transition-colors cursor-pointer"
+                            onclick={() => (activeMenu = activeMenu === "file" ? null : "file")}
                         >
+                            File
+                        </button>
                         {#if activeMenu === "file"}
-                            <div
-                                class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-44 z-50 text-xs"
-                            >
+                            <div class="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-zinc-200 py-1.5 w-48 z-50 text-xs animate-fadeIn">
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
                                     onclick={() => exportDoc("docx")}
-                                    >Download as DOCX</button
                                 >
+                                    Download as DOCX
+                                </button>
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
                                     onclick={() => exportDoc("md")}
-                                    >Download as Markdown</button
                                 >
+                                    Download as Markdown
+                                </button>
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
                                     onclick={() => exportDoc("html")}
-                                    >Download as HTML</button
                                 >
+                                    Download as HTML
+                                </button>
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
                                     onclick={() => exportDoc("txt")}
-                                    >Download as Plain Text</button
                                 >
+                                    Download as Plain Text
+                                </button>
+                                <div class="my-1 border-t border-zinc-100"></div>
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
                                     onclick={() => exportDoc("pdf")}
-                                    >Print / PDF</button
                                 >
+                                    Print / PDF
+                                </button>
                             </div>
                         {/if}
                     </div>
+
                     <button
                         type="button"
-                        class="px-1.5 py-0.5 rounded hover:bg-gray-100"
-                        onclick={() =>
-                            (activeSidebar =
-                                activeSidebar === "outline" ? null : "outline")}
-                        >Outline</button
+                        class="px-2 py-0.5 rounded-md hover:bg-zinc-100 hover:text-zinc-950 transition-colors cursor-pointer {activeSidebar === 'outline' ? 'bg-zinc-100 text-zinc-950' : ''}"
+                        onclick={() => (activeSidebar = activeSidebar === "outline" ? null : "outline")}
                     >
+                        Outline
+                    </button>
                     <button
                         type="button"
-                        class="px-1.5 py-0.5 rounded hover:bg-gray-100"
-                        onclick={() =>
-                            (activeSidebar =
-                                activeSidebar === "comments"
-                                    ? null
-                                    : "comments")}>Comments</button
+                        class="px-2 py-0.5 rounded-md hover:bg-zinc-100 hover:text-zinc-950 transition-colors cursor-pointer {activeSidebar === 'comments' ? 'bg-zinc-100 text-zinc-950' : ''}"
+                        onclick={() => (activeSidebar = activeSidebar === "comments" ? null : "comments")}
                     >
+                        Comments {#if comments.length}<span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-zinc-200 text-zinc-800">{comments.length}</span>{/if}
+                    </button>
                     <button
                         type="button"
-                        class="px-1.5 py-0.5 rounded hover:bg-gray-100"
-                        onclick={() =>
-                            (activeSidebar =
-                                activeSidebar === "history" ? null : "history")}
-                        >History</button
+                        class="px-2 py-0.5 rounded-md hover:bg-zinc-100 hover:text-zinc-950 transition-colors cursor-pointer {activeSidebar === 'history' ? 'bg-zinc-100 text-zinc-950' : ''}"
+                        onclick={() => (activeSidebar = activeSidebar === "history" ? null : "history")}
                     >
+                        History
+                    </button>
                 </nav>
             </div>
         </div>
 
+        <!-- Right Side: Collaborators & Share Button -->
         <div class="flex items-center gap-3">
             <div class="flex -space-x-1.5 overflow-hidden">
                 {#each collaborators.slice(0, 4) as c}
                     <div
-                        class="w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[10px] ring-2 ring-white shadow-xs"
-                        style="background-color: {c.color || '#1a73e8'};"
+                        class="w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[10px] ring-2 ring-white shadow-2xs bg-zinc-900 overflow-hidden"
                         title={c.name || "Collaborator"}
                     >
-                        {(c.name || "U")[0].toUpperCase()}
+                        {#if c.avatar}
+                            <img src={c.avatar} alt={c.name} class="w-full h-full object-cover" />
+                        {:else}
+                            {(c.name || "U")[0].toUpperCase()}
+                        {/if}
                     </div>
                 {/each}
             </div>
+
             <button
                 type="button"
                 onclick={() => (isShareOpen = true)}
-                class="flex items-center gap-1.5 px-4 py-1.5 bg-[#c2e7ff] hover:bg-[#b3def5] text-[#001d35] rounded-full text-xs font-semibold shadow-xs transition-colors"
-                ><Share2 size={15} /> Share</button
+                class="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-950 hover:bg-zinc-800 active:scale-[0.98] text-white rounded-lg text-xs font-medium shadow-xs hover:shadow-sm transition-all cursor-pointer"
             >
+                <Share2 size={14} />
+                <span>Share</span>
+            </button>
         </div>
     </header>
 
-    <!-- Editor Container -->
+    <!-- Editor & Toolbar Container -->
     <div class="flex flex-1 overflow-hidden relative">
-        <div class="flex-1 flex flex-col overflow-hidden bg-[#edf2fa]">
-            <!-- Toolbar -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-[#fafafa]">
+            <!-- Sleek Shadcn Ribbon Toolbar -->
             <div
                 bind:this={toolbarRef}
-                class="sticky top-0 z-30 flex flex-wrap items-center gap-0.5 bg-[#edf2fa] px-3 py-1 border-b border-[#dadce0] select-none text-[#444746] text-xs"
+                class="sticky top-0 z-30 flex flex-wrap items-center gap-1 bg-white/95 backdrop-blur-md px-4 py-1.5 border-b border-zinc-200 select-none text-zinc-700 text-xs shadow-2xs"
             >
-                <button
-                    type="button"
-                    aria-label="Undo"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() => editor?.chain().focus().undo().run()}
-                    ><Undo2 size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Redo"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() => editor?.chain().focus().redo().run()}
-                    ><Redo2 size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Print"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() => window.print()}><Printer size={15} /></button
-                >
-                <div class="h-4 w-px bg-[#c4c7c5] mx-1"></div>
+                <!-- Undo / Redo -->
+                <div class="flex items-center gap-0.5">
+                    <button
+                        type="button"
+                        aria-label="Undo"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
+                        onclick={() => editor?.chain().focus().undo().run()}
+                    >
+                        <Undo2 size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Redo"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
+                        onclick={() => editor?.chain().focus().redo().run()}
+                    >
+                        <Redo2 size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Print"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer"
+                        onclick={() => window.print()}
+                    >
+                        <Printer size={14} />
+                    </button>
+                </div>
 
+                <div class="h-4 w-px bg-zinc-200 mx-1"></div>
+
+                <!-- Heading Style Selector -->
                 <div class="relative">
                     <button
                         type="button"
-                        class="flex items-center gap-1 px-2 py-1 rounded hover:bg-black/5"
+                        class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-800 font-medium text-xs transition-colors cursor-pointer"
                         onclick={() => toggleDropdown("h")}
-                        ><span>{getHeading()}</span><ChevronDown
-                            size={11}
-                        /></button
                     >
+                        <span>{getHeading()}</span>
+                        <ChevronDown size={12} class="text-zinc-400" />
+                    </button>
                     {#if activeDrop === "h"}
-                        <div
-                            class="absolute left-0 top-full mt-1 bg-white rounded shadow-lg border border-gray-200 z-50 py-1 w-32"
-                        >
+                        <div class="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-zinc-200 z-50 py-1.5 w-36 animate-fadeIn">
                             {#each HEADING_STYLES as h}
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1 hover:bg-gray-100"
-                                    onclick={() =>
-                                        setHeading({ level: h.level })}
-                                    >{h.label}</button
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 text-xs transition-colors cursor-pointer"
+                                    onclick={() => setHeading({ level: h.level })}
                                 >
+                                    {h.label}
+                                </button>
                             {/each}
                         </div>
                     {/if}
                 </div>
 
+                <!-- Font Family Selector -->
                 <div class="relative">
                     <button
                         type="button"
-                        class="flex items-center gap-1 px-2 py-1 rounded hover:bg-black/5 truncate max-w-24"
+                        class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-800 font-medium text-xs truncate max-w-28 transition-colors cursor-pointer"
                         onclick={() => toggleDropdown("f")}
-                        ><span class="truncate">{getFont()}</span><ChevronDown
-                            size={11}
-                        /></button
                     >
+                        <span class="truncate">{getFont()}</span>
+                        <ChevronDown size={12} class="text-zinc-400 shrink-0" />
+                    </button>
                     {#if activeDrop === "f"}
-                        <div
-                            class="absolute left-0 top-full mt-1 bg-white rounded shadow-lg border border-gray-200 z-50 py-1 w-36 max-h-48 overflow-y-auto"
-                        >
+                        <div class="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-zinc-200 z-50 py-1.5 w-40 max-h-48 overflow-y-auto animate-fadeIn">
                             {#each FONT_FAMILIES as f}
                                 <button
                                     type="button"
-                                    class="w-full text-left px-3 py-1 hover:bg-gray-100 truncate"
+                                    class="w-full text-left px-3.5 py-1.5 hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 text-xs truncate transition-colors cursor-pointer"
                                     onclick={() => {
-                                        editor
-                                            ?.chain()
-                                            .focus()
-                                            .setFontFamily(f.value)
-                                            .run();
+                                        editor?.chain().focus().setFontFamily(f.value).run();
                                         activeDrop = null;
-                                    }}>{f.label}</button
+                                    }}
                                 >
+                                    {f.label}
+                                </button>
                             {/each}
                         </div>
                     {/if}
                 </div>
-                <div class="h-4 w-px bg-[#c4c7c5] mx-1"></div>
 
-                <div class="flex items-center">
+                <!-- Font Size Controls -->
+                <div class="flex items-center bg-zinc-50 border border-zinc-200 rounded-md p-0.5">
                     <button
                         type="button"
                         aria-label="Decrease font size"
-                        class="p-1 rounded hover:bg-black/5"
+                        class="p-1 rounded text-zinc-600 hover:bg-zinc-200 transition-colors cursor-pointer"
                         onclick={() => changeSize(-1)}
-                        ><Minus size={11} /></button
                     >
+                        <Minus size={11} />
+                    </button>
                     <button
                         type="button"
                         aria-label="Increase font size"
-                        class="p-1 rounded hover:bg-black/5"
-                        onclick={() => changeSize(1)}><Plus size={11} /></button
+                        class="p-1 rounded text-zinc-600 hover:bg-zinc-200 transition-colors cursor-pointer"
+                        onclick={() => changeSize(1)}
                     >
+                        <Plus size={11} />
+                    </button>
                 </div>
-                <div class="h-4 w-px bg-[#c4c7c5] mx-1"></div>
 
-                <button
-                    type="button"
-                    aria-label="Bold"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    class:bg-blue-100={isB()}
-                    onclick={() => editor?.chain().focus().toggleBold().run()}
-                    ><Bold size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Italic"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    class:bg-blue-100={isI()}
-                    onclick={() => editor?.chain().focus().toggleItalic().run()}
-                    ><Italic size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Underline"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    class:bg-blue-100={isU()}
-                    onclick={() =>
-                        editor?.chain().focus().toggleUnderline().run()}
-                    ><UnderlineIcon size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Strikethrough"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    class:bg-blue-100={isS()}
-                    onclick={() => editor?.chain().focus().toggleStrike().run()}
-                    ><Strikethrough size={15} /></button
-                >
+                <div class="h-4 w-px bg-zinc-200 mx-1"></div>
 
+                <!-- Formatting Controls (Bold, Italic, Underline, Strike) -->
+                <div class="flex items-center gap-0.5">
+                    <button
+                        type="button"
+                        aria-label="Bold"
+                        class="p-1.5 rounded-md transition-colors cursor-pointer {isB() ? 'bg-zinc-950 text-white' : 'hover:bg-zinc-100 text-zinc-700'}"
+                        onclick={() => editor?.chain().focus().toggleBold().run()}
+                    >
+                        <Bold size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Italic"
+                        class="p-1.5 rounded-md transition-colors cursor-pointer {isI() ? 'bg-zinc-950 text-white' : 'hover:bg-zinc-100 text-zinc-700'}"
+                        onclick={() => editor?.chain().focus().toggleItalic().run()}
+                    >
+                        <Italic size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Underline"
+                        class="p-1.5 rounded-md transition-colors cursor-pointer {isU() ? 'bg-zinc-950 text-white' : 'hover:bg-zinc-100 text-zinc-700'}"
+                        onclick={() => editor?.chain().focus().toggleUnderline().run()}
+                    >
+                        <UnderlineIcon size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Strikethrough"
+                        class="p-1.5 rounded-md transition-colors cursor-pointer {isS() ? 'bg-zinc-950 text-white' : 'hover:bg-zinc-100 text-zinc-700'}"
+                        onclick={() => editor?.chain().focus().toggleStrike().run()}
+                    >
+                        <Strikethrough size={14} />
+                    </button>
+                </div>
+
+                <!-- Color Palette -->
                 <div class="relative">
                     <button
                         type="button"
                         aria-label="Text color"
-                        class="p-1.5 rounded hover:bg-black/5"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
                         onclick={() => toggleDropdown("c")}
-                        ><Baseline size={15} /></button
                     >
+                        <Baseline size={14} />
+                    </button>
                     {#if activeDrop === "c"}
-                        <div
-                            class="absolute left-0 top-full mt-1 bg-white rounded p-2 grid grid-cols-6 gap-1 w-36 shadow-lg border border-gray-200 z-50"
-                        >
+                        <div class="absolute left-0 top-full mt-1 bg-white rounded-xl p-2.5 grid grid-cols-6 gap-1.5 w-40 shadow-xl border border-zinc-200 z-50 animate-fadeIn">
                             {#each GOOGLE_COLORS.slice(0, 18) as c}
                                 <button
                                     type="button"
                                     aria-label={`Color ${c}`}
-                                    class="w-4 h-4 rounded-full border border-gray-200"
+                                    class="w-4.5 h-4.5 rounded-md border border-zinc-200/80 shadow-2xs hover:scale-110 transition-transform cursor-pointer"
                                     style="background-color: {c};"
                                     onclick={() => {
-                                        editor
-                                            ?.chain()
-                                            .focus()
-                                            .setColor(c)
-                                            .run();
+                                        editor?.chain().focus().setColor(c).run();
                                         activeDrop = null;
                                     }}
                                 ></button>
@@ -593,217 +604,187 @@
                     {/if}
                 </div>
 
-                <button
-                    type="button"
-                    aria-label="Bullet list"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() =>
-                        editor?.chain().focus().toggleBulletList().run()}
-                    ><List size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Numbered list"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() =>
-                        editor?.chain().focus().toggleOrderedList().run()}
-                    ><ListOrdered size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Task list"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() =>
-                        editor?.chain().focus().toggleTaskList().run()}
-                    ><ListTodo size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Insert table"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() =>
-                        editor
-                            ?.chain()
-                            .focus()
-                            .insertTable({
+                <div class="h-4 w-px bg-zinc-200 mx-1"></div>
+
+                <!-- List & Structure Controls -->
+                <div class="flex items-center gap-0.5">
+                    <button
+                        type="button"
+                        aria-label="Bullet list"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                        onclick={() => editor?.chain().focus().toggleBulletList().run()}
+                    >
+                        <List size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Numbered list"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                        onclick={() => editor?.chain().focus().toggleOrderedList().run()}
+                    >
+                        <ListOrdered size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Task list"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                        onclick={() => editor?.chain().focus().toggleTaskList().run()}
+                    >
+                        <ListTodo size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Insert table"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                        onclick={() =>
+                            editor?.chain().focus().insertTable({
                                 rows: 3,
                                 cols: 3,
                                 withHeaderRow: true,
-                            })
-                            .run()}><TableIcon size={15} /></button
-                >
-                <button
-                    type="button"
-                    aria-label="Clear formatting"
-                    class="p-1.5 rounded hover:bg-black/5"
-                    onclick={() =>
-                        editor
-                            ?.chain()
-                            .focus()
-                            .unsetAllMarks()
-                            .clearNodes()
-                            .run()}><RemoveFormatting size={15} /></button
-                >
+                            }).run()}
+                    >
+                        <TableIcon size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Clear formatting"
+                        class="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                        onclick={() =>
+                            editor?.chain().focus().unsetAllMarks().clearNodes().run()}
+                    >
+                        <RemoveFormatting size={14} />
+                    </button>
+                </div>
             </div>
 
-            <!-- Canvas -->
-            <div
-                class="flex-1 overflow-y-auto px-4 py-8 flex justify-center bg-[#f9fbfd]"
-            >
-                <div
-                    class="relative bg-white text-[#202124] shadow-md border border-[#dadce0]/60 rounded-xs w-204 min-h-264 py-16 px-24"
-                >
+            <!-- Canvas Viewport -->
+            <div class="flex-1 overflow-y-auto px-4 py-8 flex justify-center bg-[#fafafa]">
+                <div class="relative bg-white text-zinc-900 shadow-sm border border-zinc-200/90 rounded-xl w-full max-w-[850px] min-h-[1050px] py-16 px-12 sm:px-20 transition-all">
                     <div
                         bind:this={editorElement}
-                        class="min-h-225 outline-none text-gray-900 leading-relaxed font-sans"
+                        class="min-h-[900px] outline-none text-zinc-900 leading-relaxed font-sans"
                     ></div>
                 </div>
             </div>
         </div>
 
-        <!-- Sidebar Drawer -->
+        <!-- Sleek Shadcn Sidebar Drawer -->
         {#if activeSidebar}
-            <aside
-                class="w-80 bg-white border-l border-gray-200 h-full flex flex-col shadow-lg z-30 select-none"
-            >
-                <div
-                    class="flex items-center justify-between px-4 py-3 border-b border-gray-100"
-                >
-                    <div
-                        class="flex items-center gap-2 text-sm font-semibold text-gray-800"
-                    >
+            <aside class="w-80 bg-white border-l border-zinc-200 h-full flex flex-col shadow-lg z-30 select-none animate-fadeIn">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+                    <div class="flex items-center gap-2 text-xs font-semibold text-zinc-900">
                         {#if activeSidebar === "outline"}
-                            <List size={16} class="text-blue-600" /><span
-                                >Document outline</span
-                            >
+                            <List size={15} class="text-zinc-900" />
+                            <span>Document Outline</span>
                         {:else if activeSidebar === "comments"}
-                            <MessageSquare
-                                size={16}
-                                class="text-blue-600"
-                            /><span>Comments ({comments.length})</span>
+                            <MessageSquare size={15} class="text-zinc-900" />
+                            <span>Comments ({comments.length})</span>
                         {:else}
-                            <History size={16} class="text-blue-600" /><span
-                                >Version history</span
-                            >
+                            <History size={15} class="text-zinc-900" />
+                            <span>Version History</span>
                         {/if}
                     </div>
                     <button
                         type="button"
                         aria-label="Close sidebar"
-                        class="p-1 rounded text-gray-400 hover:text-gray-600"
+                        class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
                         onclick={() => (activeSidebar = null)}
-                        ><X size={16} /></button
                     >
+                        <X size={15} />
+                    </button>
                 </div>
 
                 {#if activeSidebar === "outline"}
-                    <div class="flex-1 overflow-y-auto p-3 space-y-1">
+                    <div class="flex-1 overflow-y-auto p-4 space-y-1">
                         {#if !headings.length}
-                            <div
-                                class="text-center py-12 text-gray-400 text-xs"
-                            >
-                                Headings appear here.
+                            <div class="text-center py-12 text-zinc-400 text-xs">
+                                Headings in your document will appear here.
                             </div>
                         {:else}
                             {#each headings as h}
                                 <button
                                     type="button"
-                                    class="w-full text-left py-1 px-2 rounded text-xs truncate hover:bg-gray-100"
-                                    style="padding-left: {(h.level - 1) * 12 +
-                                        8}px;">{h.text}</button
+                                    class="w-full text-left py-1.5 px-2.5 rounded-lg text-xs truncate hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer font-medium"
+                                    style="padding-left: {(h.level - 1) * 12 + 10}px;"
                                 >
+                                    {h.text}
+                                </button>
                             {/each}
                         {/if}
                     </div>
                     {#if stats}
-                        <div
-                            class="p-3 border-t border-gray-100 bg-gray-50 text-[11px] text-gray-500 space-y-1"
-                        >
+                        <div class="p-4 border-t border-zinc-100 bg-zinc-50/50 text-xs text-zinc-600 space-y-1.5 font-medium">
                             <div class="flex justify-between">
-                                <span>Words:</span><span
-                                    class="font-medium text-gray-800"
-                                    >{stats.words}</span
-                                >
+                                <span class="text-zinc-500">Words:</span>
+                                <span class="font-semibold text-zinc-900">{stats.words}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>Characters:</span><span
-                                    class="font-medium text-gray-800"
-                                    >{stats.characters}</span
-                                >
+                                <span class="text-zinc-500">Characters:</span>
+                                <span class="font-semibold text-zinc-900">{stats.characters}</span>
                             </div>
                         </div>
                     {/if}
                 {:else if activeSidebar === "comments"}
-                    <div
-                        class="p-3 border-b border-gray-100 bg-gray-50 flex gap-2"
-                    >
+                    <div class="p-3 border-b border-zinc-100 bg-zinc-50/50 flex gap-2">
                         <input
                             type="text"
-                            placeholder="Add comment..."
+                            placeholder="Add a comment..."
                             bind:value={newComment}
                             onkeydown={(e) => e.key === "Enter" && addComment()}
-                            class="flex-1 px-2.5 py-1.5 border border-gray-300 rounded text-xs bg-white outline-none"
+                            class="flex-1 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs bg-white text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-950 transition-colors"
                         />
                         <button
                             type="button"
-                            class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium"
-                            onclick={addComment}>Post</button
+                            class="px-3.5 py-1.5 bg-zinc-950 hover:bg-zinc-800 text-white rounded-lg text-xs font-medium shadow-xs transition-colors cursor-pointer"
+                            onclick={addComment}
                         >
+                            Post
+                        </button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-3 space-y-3">
+                    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                        {#if !comments.length}
+                            <div class="text-center py-12 text-zinc-400 text-xs">
+                                No comments yet on this document.
+                            </div>
+                        {/if}
                         {#each comments as c}
-                            <div
-                                class="border border-gray-200 rounded-lg p-2.5 text-xs space-y-1 bg-white"
-                            >
+                            <div class="border border-zinc-200 rounded-xl p-3 text-xs space-y-1.5 bg-white shadow-2xs">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-medium text-gray-800"
-                                        >{c.author?.name || "User"}</span
-                                    >
+                                    <span class="font-semibold text-zinc-900">{c.author?.name || "User"}</span>
                                     <div class="flex items-center gap-1">
                                         <button
                                             type="button"
                                             aria-label="Resolve comment"
-                                            onclick={() =>
-                                                (comments = comments.filter(
-                                                    (x) => x.id !== c.id,
-                                                ))}
-                                            class="text-gray-400 hover:text-green-600"
-                                            ><Check size={13} /></button
+                                            onclick={() => (comments = comments.filter((x) => x.id !== c.id))}
+                                            class="p-1 text-zinc-400 hover:text-green-600 transition-colors cursor-pointer"
                                         >
+                                            <Check size={13} />
+                                        </button>
                                         <button
                                             type="button"
                                             aria-label="Delete comment"
-                                            onclick={() =>
-                                                (comments = comments.filter(
-                                                    (x) => x.id !== c.id,
-                                                ))}
-                                            class="text-gray-400 hover:text-red-600"
-                                            ><Trash2 size={13} /></button
+                                            onclick={() => (comments = comments.filter((x) => x.id !== c.id))}
+                                            class="p-1 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
                                         >
+                                            <Trash2 size={13} />
+                                        </button>
                                     </div>
                                 </div>
-                                <p class="text-gray-700">{c.content}</p>
+                                <p class="text-zinc-600 leading-relaxed">{c.content}</p>
                             </div>
                         {/each}
                     </div>
                 {:else if activeSidebar === "history"}
-                    <div class="flex-1 overflow-y-auto p-3 space-y-2">
+                    <div class="flex-1 overflow-y-auto p-4 space-y-2">
                         {#if !versions.length}
-                            <div
-                                class="text-center py-12 text-gray-400 text-xs"
-                            >
-                                No saved versions yet.
+                            <div class="text-center py-12 text-zinc-400 text-xs">
+                                No saved version snapshots yet.
                             </div>
                         {/if}
                         {#each versions as v}
-                            <div
-                                class="border border-gray-200 rounded-lg p-2.5 text-xs space-y-1 bg-white"
-                            >
+                            <div class="border border-zinc-200 rounded-xl p-3 text-xs space-y-1 bg-white shadow-2xs">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-medium text-gray-800"
-                                        >{v.name ||
-                                            formatDate(v.created_at)}</span
-                                    >
+                                    <span class="font-semibold text-zinc-900">{v.name || formatDate(v.created_at)}</span>
                                 </div>
                             </div>
                         {/each}
@@ -813,53 +794,44 @@
         {/if}
     </div>
 
-    <!-- Share Modal -->
+    <!-- Sleek Shadcn Share Dialog -->
     {#if isShareOpen}
-        <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 select-none"
-        >
-            <div
-                class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 text-gray-800"
-            >
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 select-none animate-fadeIn">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-zinc-200 space-y-5 text-zinc-900">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div
-                            class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"
-                        >
-                            <Shield size={18} />
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center shadow-xs">
+                            <Shield size={16} />
                         </div>
-                        <h2
-                            class="text-base font-semibold text-gray-900 truncate"
-                        >
+                        <h2 class="text-base font-semibold text-zinc-950 truncate max-w-[280px]">
                             Share "{title}"
                         </h2>
                     </div>
                     <button
                         type="button"
                         aria-label="Close share dialog"
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded-full"
+                        class="p-1 text-zinc-400 hover:text-zinc-900 rounded-lg transition-colors cursor-pointer"
                         onclick={() => (isShareOpen = false)}
-                        ><X size={18} /></button
                     >
+                        <X size={17} />
+                    </button>
                 </div>
 
-                <div
-                    class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl"
-                >
+                <div class="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl">
                     <div class="flex items-center gap-3">
-                        <Globe size={18} class="text-gray-500" />
+                        <Globe size={18} class="text-zinc-500 shrink-0" />
                         <div class="text-xs">
-                            <p class="font-medium text-gray-800">
+                            <p class="font-semibold text-zinc-900">
                                 Anyone with the link
                             </p>
-                            <p class="text-gray-400">
+                            <p class="text-zinc-500">
                                 Can access as {shareRole}
                             </p>
                         </div>
                     </div>
                     <select
                         bind:value={shareRole}
-                        class="text-xs font-medium border border-gray-300 rounded-lg px-2.5 py-1 bg-white outline-none"
+                        class="text-xs font-semibold border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white text-zinc-900 shadow-2xs hover:border-zinc-300 focus:ring-1 focus:ring-zinc-950 outline-none cursor-pointer"
                     >
                         <option value="viewer">Viewer</option>
                         <option value="commenter">Commenter</option>
@@ -871,18 +843,23 @@
                     <button
                         type="button"
                         onclick={copyShareLink}
-                        class="flex items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-full text-xs font-medium transition-colors"
+                        class="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-900 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
                     >
-                        {#if linkCopied}<Check size={14} /> Link Copied{:else}<Copy
-                                size={14}
-                            /> Copy link{/if}
+                        {#if linkCopied}
+                            <Check size={14} class="text-zinc-950" />
+                            <span>Link Copied!</span>
+                        {:else}
+                            <Copy size={14} />
+                            <span>Copy Link</span>
+                        {/if}
                     </button>
                     <button
                         type="button"
                         onclick={() => (isShareOpen = false)}
-                        class="px-5 py-2 bg-blue-600 text-white rounded-full text-xs font-medium hover:bg-blue-700"
-                        >Done</button
+                        class="px-5 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
                     >
+                        Done
+                    </button>
                 </div>
             </div>
         </div>

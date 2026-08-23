@@ -10,6 +10,6 @@
     });
 </script>
 
-<div class="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-4">
+<div class="min-h-screen bg-[#fafafa] flex items-center justify-center p-4">
     <GoogleAuthCard />
 </div>
